@@ -1,0 +1,65 @@
+services:
+  app:
+    container_name: app-vt
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MODE: production
+        SHOPIFY_API_KEY: ${SHOPIFY_API_KEY}
+        VITE_CDN_URL: ${VITE_CDN_URL}
+        SHOPIFY_APP_PROXY: ${SHOPIFY_APP_PROXY}
+        VITE_HOST: ${VITE_HOST}
+        VITE_EMBEDDED_ID: ${VITE_EMBEDDED_ID}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./web:/app-vt
+    environment:
+      - VITE_APP_SHOPIFY_API_KEY=${SHOPIFY_API_KEY}
+      - VITE_CDN_URL=${VITE_CDN_URL}
+      - VITE_HOST=${VITE_HOST}
+      - VITE_EMBEDDED_ID=${VITE_EMBEDDED_ID}
+      - VITE_SHOPIFY_APP_PROXY=${SHOPIFY_APP_PROXY}
+      - SHOPIFY_APP_PROXY=${SHOPIFY_APP_PROXY}
+    restart: always
+    depends_on:
+      - mysql
+      - redis
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_APP_USER}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: always
+
+  redis:
+    container_name: redis
+    image: redis:6.2.3-alpine
+    volumes:
+      - redis_data:/data
+    environment:
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - ALLOW_EMPTY_PASSWORD=yes
+    command: redis-server --requirepass ${REDIS_PASSWORD} --port ${REDIS_PORT} --protected-mode yes
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    restart: "always"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mysql_data:
+  redis_data:

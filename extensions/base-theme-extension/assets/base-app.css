@@ -1,0 +1,14 @@
+.base-app-block {
+  padding: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+}
+
+.base-app-block h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.base-app-block p {
+  margin: 0;
+}

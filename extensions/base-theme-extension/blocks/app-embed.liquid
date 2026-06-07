@@ -1,0 +1,22 @@
+{% if block.settings.enabled %}
+  <script>
+    window.BaseShopifyApp = {
+      shop: {{ shop.permanent_domain | json }},
+    };
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Base app embed",
+  "target": "body",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "enabled",
+      "label": "Enable app embed",
+      "default": true
+    }
+  ]
+}
+{% endschema %}

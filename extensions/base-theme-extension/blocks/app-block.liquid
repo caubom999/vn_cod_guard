@@ -1,0 +1,31 @@
+<div class="base-app-block" data-shop="{{ shop.permanent_domain }}">
+  {% if block.settings.heading != blank %}
+    <h2>{{ block.settings.heading }}</h2>
+  {% endif %}
+
+  {% if block.settings.content != blank %}
+    <p>{{ block.settings.content }}</p>
+  {% endif %}
+</div>
+
+{% schema %}
+{
+  "name": "Base app block",
+  "target": "section",
+  "stylesheet": "base-app.css",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Base app block"
+    },
+    {
+      "type": "textarea",
+      "id": "content",
+      "label": "Content",
+      "default": "Replace this block with your storefront feature."
+    }
+  ]
+}
+{% endschema %}

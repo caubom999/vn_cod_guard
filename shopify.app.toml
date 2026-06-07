@@ -1,0 +1,23 @@
+client_id = "bf5519d67e774301ff0f57a0154b1775"
+application_url = "https://example.com"
+embedded = true
+name = "Base of VT"
+handle = "base-of-vt"
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "storeofvanthanh.myshopify.com"
+
+[webhooks]
+api_version = "2026-01"
+
+[access_scopes]
+scopes = "read_products"
+
+[auth]
+redirect_urls = [
+  "https://example.com/api/auth/callback"
+]
+
+[pos]
+embedded = false
