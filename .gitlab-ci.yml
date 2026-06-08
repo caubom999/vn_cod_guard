@@ -19,11 +19,31 @@ build_development:
   script:
     - echo "Build development"
     - docker pull $CI_REGISTRY_IMAGE:develop || true
-    - echo "SHOPIFY_API_KEY=$SHOPIFY_API_KEY"
     - docker build --no-cache -t $CI_REGISTRY_IMAGE:develop -f Dockerfile --build-arg SHOPIFY_API_KEY="$SHOPIFY_API_KEY" --build-arg VITE_CDN_URL="$VITE_CDN_URL" --build-arg VITE_HOST="$VITE_HOST" --build-arg VITE_EMBEDDED_ID="$VITE_EMBEDDED_ID" --build-arg SHOPIFY_APP_PROXY="$SHOPIFY_APP_PROXY" .
     - docker push $CI_REGISTRY_IMAGE:develop
   rules:
-    - if: $CI_COMMIT_BRANCH == 'develop'
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+build_merge_request:
+  extends: .build
+  script:
+    - echo "Build merge request"
+    - docker build --no-cache -t $CI_REGISTRY_IMAGE:mr-$CI_MERGE_REQUEST_IID -f Dockerfile --build-arg SHOPIFY_API_KEY="$SHOPIFY_API_KEY" --build-arg VITE_CDN_URL="$VITE_CDN_URL" --build-arg VITE_HOST="$VITE_HOST" --build-arg VITE_EMBEDDED_ID="$VITE_EMBEDDED_ID" --build-arg SHOPIFY_APP_PROXY="$SHOPIFY_APP_PROXY" .
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+build_production:
+  extends: .build
+  environment:
+    name: production
+    url: https://flashvt.store
+  script:
+    - echo "Build production"
+    - docker pull $CI_REGISTRY_IMAGE:latest || true
+    - docker build --no-cache -t $CI_REGISTRY_IMAGE:latest -f Dockerfile --build-arg SHOPIFY_API_KEY="$SHOPIFY_API_KEY" --build-arg VITE_CDN_URL="$VITE_CDN_URL" --build-arg VITE_HOST="$VITE_HOST" --build-arg VITE_EMBEDDED_ID="$VITE_EMBEDDED_ID" --build-arg SHOPIFY_APP_PROXY="$SHOPIFY_APP_PROXY" .
+    - docker push $CI_REGISTRY_IMAGE:latest
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
 
 deploy_development:
   stage: deploy
@@ -49,4 +69,30 @@ deploy_development:
       docker exec app-vt npx prisma generate
       docker image prune -f;"
   rules:
-    - if: $CI_COMMIT_BRANCH == 'develop'
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+deploy_production:
+  stage: deploy
+  variables:
+    GIT_STRATEGY: none
+  environment:
+    name: production
+    url: https://flashvt.store
+  before_script:
+    - apk update && apk add openssh-client bash
+  script:
+    - mkdir -p ~/.ssh
+    - echo -e "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
+    - >
+      ssh -i ~/.ssh/id_rsa $SERVER_USERNAME@$SERVER_IP_ADDRESS
+      "docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY};
+      cd ${PROJECT_DIR};
+      docker pull ${CI_REGISTRY_IMAGE}:latest;
+      docker compose down;
+      docker compose up -d;
+      docker exec app-vt npx prisma generate
+      docker image prune -f;"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
