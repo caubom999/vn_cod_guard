@@ -62,18 +62,22 @@ deploy_development:
   before_script:
     - apk update && apk add openssh-client bash
   script:
+    - test -n "$SSH_PRIVATE_KEY" || (echo "SSH_PRIVATE_KEY is required" && exit 1)
+    - test -n "$SERVER_USERNAME" || (echo "SERVER_USERNAME is required" && exit 1)
+    - test -n "$SERVER_IP_ADDRESS" || (echo "SERVER_IP_ADDRESS is required" && exit 1)
+    - test -n "$PROJECT_DIR" || (echo "PROJECT_DIR is required" && exit 1)
     - mkdir -p ~/.ssh
     - echo -e "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
     - >
-      ssh -i ~/.ssh/id_rsa $SERVER_USERNAME@$SERVER_IP_ADDRESS
+      ssh -i ~/.ssh/id_rsa "$SERVER_USERNAME@$SERVER_IP_ADDRESS"
       "docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY};
       cd ${PROJECT_DIR};
       docker pull ${CI_REGISTRY_IMAGE}:develop;
       docker compose down;
       docker compose up -d;
-      docker exec app-vt npx prisma generate
+      docker exec app-vt npx prisma generate;
       docker image prune -f;"
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
@@ -88,18 +92,22 @@ deploy_production:
   before_script:
     - apk update && apk add openssh-client bash
   script:
+    - test -n "$SSH_PRIVATE_KEY" || (echo "SSH_PRIVATE_KEY is required" && exit 1)
+    - test -n "$SERVER_USERNAME" || (echo "SERVER_USERNAME is required" && exit 1)
+    - test -n "$SERVER_IP_ADDRESS" || (echo "SERVER_IP_ADDRESS is required" && exit 1)
+    - test -n "$PROJECT_DIR" || (echo "PROJECT_DIR is required" && exit 1)
     - mkdir -p ~/.ssh
     - echo -e "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
     - >
-      ssh -i ~/.ssh/id_rsa $SERVER_USERNAME@$SERVER_IP_ADDRESS
+      ssh -i ~/.ssh/id_rsa "$SERVER_USERNAME@$SERVER_IP_ADDRESS"
       "docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY};
       cd ${PROJECT_DIR};
       docker pull ${CI_REGISTRY_IMAGE}:latest;
       docker compose down;
       docker compose up -d;
-      docker exec app-vt npx prisma generate
+      docker exec app-vt npx prisma generate;
       docker image prune -f;"
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
