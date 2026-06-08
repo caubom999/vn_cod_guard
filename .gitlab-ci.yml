@@ -80,6 +80,7 @@ build_production:
 #       "docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY};
 #       cd ${PROJECT_DIR};
 #       docker pull ${CI_REGISTRY_IMAGE}:develop;
+#       export APP_IMAGE=${CI_REGISTRY_IMAGE}:develop;
 #       docker compose down;
 #       docker compose up -d;
 #       docker exec app-vt npx prisma generate;
@@ -110,6 +111,7 @@ build_production:
 #       "docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY};
 #       cd ${PROJECT_DIR};
 #       docker pull ${CI_REGISTRY_IMAGE}:latest;
+#       export APP_IMAGE=${CI_REGISTRY_IMAGE}:latest;
 #       docker compose down;
 #       docker compose up -d;
 #       docker exec app-vt npx prisma generate;
