@@ -1,4 +1,31 @@
 services:
+  app:
+    container_name: app-vt
+    image: ${APP_IMAGE:-base-app:latest}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      HOST: ${HOST}
+      APP_SCHEME: ${APP_SCHEME:-https}
+      SHOPIFY_API_KEY: ${SHOPIFY_API_KEY}
+      SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET}
+      SHOPIFY_SCOPES: ${SHOPIFY_SCOPES:-read_products}
+      DATABASE_URL: mysql://${MYSQL_APP_USER}:${MYSQL_APP_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      MYSQL_HOST: ${MYSQL_HOST:-mysql}
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_APP_USER}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    restart: always
+    depends_on:
+      - mysql
+      - redis
+
   mysql:
     image: mysql:8.0
     environment:
