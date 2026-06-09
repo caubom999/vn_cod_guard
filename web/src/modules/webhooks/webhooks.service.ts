@@ -1,19 +1,10 @@
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
-import { Request } from 'express';
+import { createHash } from 'crypto';
 import { ShopService } from '../shop/shop.service';
 import { ORDERS_CREATE_WEBHOOK_TOPIC } from './webhooks.constants';
 import { WebhooksRepository } from './webhooks.repository';
-
-export type ShopifyWebhookRequest = Request & {
-  rawBody?: Buffer;
-};
+import { ShopifyWebhookRequest } from './webhooks.types';
 
 export type WebhookReceipt =
   | { status: 'accepted'; eventId: number }
@@ -23,7 +14,6 @@ export type WebhookReceipt =
 @Injectable()
 export class WebhooksService {
   constructor(
-    private readonly config: ConfigService,
     private readonly shops: ShopService,
     private readonly webhooks: WebhooksRepository,
   ) {}
@@ -31,8 +21,6 @@ export class WebhooksService {
   async receiveOrdersCreate(
     request: ShopifyWebhookRequest,
   ): Promise<WebhookReceipt> {
-    this.verifyShopifyHmac(request);
-
     const shopDomain = this.getRequiredHeader(request, 'x-shopify-shop-domain');
     const topic =
       this.getHeader(request, 'x-shopify-topic') || ORDERS_CREATE_WEBHOOK_TOPIC;
@@ -63,38 +51,6 @@ export class WebhooksService {
     });
 
     return { status: 'accepted', eventId: event.id };
-  }
-
-  private verifyShopifyHmac(request: ShopifyWebhookRequest) {
-    const rawBody = request.rawBody;
-    const receivedHmac = this.getHeader(request, 'x-shopify-hmac-sha256');
-
-    if (!rawBody?.length) {
-      throw new BadRequestException('Missing raw webhook body');
-    }
-
-    if (!receivedHmac) {
-      throw new UnauthorizedException('Missing Shopify webhook HMAC');
-    }
-
-    const secret = this.config.getOrThrow<string>('shopify.apiSecret');
-    const expectedHmac = createHmac('sha256', secret)
-      .update(rawBody)
-      .digest('base64');
-
-    if (!this.safeEqual(receivedHmac, expectedHmac)) {
-      throw new UnauthorizedException('Invalid Shopify webhook HMAC');
-    }
-  }
-
-  private safeEqual(received: string, expected: string) {
-    const receivedBuffer = Buffer.from(received, 'base64');
-    const expectedBuffer = Buffer.from(expected, 'base64');
-
-    return (
-      receivedBuffer.length === expectedBuffer.length &&
-      timingSafeEqual(receivedBuffer, expectedBuffer)
-    );
   }
 
   private getPayload(request: ShopifyWebhookRequest) {
