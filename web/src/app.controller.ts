@@ -29,7 +29,9 @@ export class AppController {
 
     const entryFile = join(
       __dirname,
-      process.env.NODE_ENV === 'production' ? '../frontend/dist' : '../frontend',
+      process.env.NODE_ENV === 'production'
+        ? '../frontend/dist'
+        : '../frontend',
       'index.html',
     );
 
@@ -45,7 +47,9 @@ export class AppController {
       const host = req.query.host as string;
       const redirectUri = `https://${this.shopifyService.hostName}/api/auth?${new URLSearchParams({ shop, host }).toString()}`;
       const query = new URLSearchParams({
-        ...Object.fromEntries(Object.entries(req.query).map(([key, value]) => [key, String(value)])),
+        ...Object.fromEntries(
+          Object.entries(req.query).map(([key, value]) => [key, String(value)]),
+        ),
         shop,
         redirectUri,
       }).toString();
@@ -53,6 +57,8 @@ export class AppController {
       return res.redirect(`/exit-iframe?${query}`);
     }
 
-    return res.redirect(`/api/auth?${new URLSearchParams({ shop }).toString()}`);
+    return res.redirect(
+      `/api/auth?${new URLSearchParams({ shop }).toString()}`,
+    );
   }
 }

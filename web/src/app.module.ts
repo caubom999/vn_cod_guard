@@ -8,6 +8,7 @@ import shopifyConfig from './config/shopify';
 import { AuthModule } from './modules/auth/auth.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { ShopifyModule } from './modules/shopify/shopify.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -19,7 +20,9 @@ import { ShopifyModule } from './modules/shopify/shopify.module';
     ServeStaticModule.forRoot({
       rootPath: join(
         __dirname,
-        process.env.NODE_ENV === 'production' ? '../frontend/dist' : '../frontend',
+        process.env.NODE_ENV === 'production'
+          ? '../frontend/dist'
+          : '../frontend',
       ),
       exclude: ['/api*'],
       serveStaticOptions: {
@@ -35,6 +38,7 @@ import { ShopifyModule } from './modules/shopify/shopify.module';
     ShopifyModule,
     AuthModule,
     ShopModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
 })

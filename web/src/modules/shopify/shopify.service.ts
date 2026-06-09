@@ -65,7 +65,11 @@ export class ShopifyService {
     });
   }
 
-  async graphql(shop: string, query: string, variables?: Record<string, unknown>) {
+  async graphql(
+    shop: string,
+    query: string,
+    variables?: Record<string, unknown>,
+  ) {
     const session = await this.loadOfflineSession(shop);
 
     if (!session) {

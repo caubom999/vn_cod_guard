@@ -6,8 +6,14 @@ import { ShopifyGuard, AuthenticatedRequest } from '../shopify/shopify.guard';
 export class ShopController {
   @Get('me')
   me(@Req() req: AuthenticatedRequest) {
-    const { accessToken, ...shop } = req.shop;
-
-    return shop;
+    return {
+      id: req.shop.id,
+      domain: req.shop.domain,
+      name: req.shop.name,
+      email: req.shop.email,
+      scopes: req.shop.scopes,
+      installedAt: req.shop.installedAt,
+      updatedAt: req.shop.updatedAt,
+    };
   }
 }

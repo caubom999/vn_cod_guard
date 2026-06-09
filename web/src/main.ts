@@ -10,8 +10,16 @@ async function bootstrap() {
     rawBody: true,
   });
 
-  app.use(json({ limit: '10mb' }));
-  app.use(urlencoded({ extended: true, limit: '10mb' }));
+  const captureRawBody = (req: any, _res: unknown, buffer: Buffer) => {
+    if (buffer?.length) {
+      req.rawBody = Buffer.from(buffer);
+    }
+  };
+
+  app.use(json({ limit: '10mb', verify: captureRawBody }));
+  app.use(
+    urlencoded({ extended: true, limit: '10mb', verify: captureRawBody }),
+  );
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,

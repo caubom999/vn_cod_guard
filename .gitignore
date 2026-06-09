@@ -31,7 +31,9 @@ web/database.sqlite
 .shopify/*
 .shopify.lock
 
-.vscode
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 .idea
 .docker/data

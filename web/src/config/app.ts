@@ -8,6 +8,7 @@ export default registerAs('app', () => {
     port: Number(process.env.PORT || 8081),
     host,
     hostName: host.replace(/^https?:\/\//, ''),
-    scheme: process.env.APP_SCHEME || (host.startsWith('http://') ? 'http' : 'https'),
+    scheme:
+      process.env.APP_SCHEME || (host.startsWith('http://') ? 'http' : 'https'),
   };
 });
