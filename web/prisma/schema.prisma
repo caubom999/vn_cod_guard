@@ -30,5 +30,308 @@ model Shop {
   installedAt DateTime @default(now()) @db.DateTime(0)
   updatedAt   DateTime @updatedAt @db.DateTime(0)
 
+  codSetting          CodShopSetting?
+  webhookEvents       WebhookEvent[]
+  codOrders           CodOrder[]
+  codRiskRules        CodRiskRule[]
+  blacklistEntries    CodBlacklistEntry[]
+  messageTemplates    CodMessageTemplate[]
+  channelIntegrations CodChannelIntegration[]
+
   @@map("shops")
+}
+
+enum CodOrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED_BY_CUSTOMER
+  EXPIRED
+  NEEDS_REVIEW
+  SKIPPED
+}
+
+enum VerificationChannel {
+  EMAIL
+  SMS
+  ZALO
+  WHATSAPP
+  MANUAL
+}
+
+enum VerificationSessionStatus {
+  ACTIVE
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  REVOKED
+}
+
+enum MessageDeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum AutomationJobType {
+  SEND_REMINDER
+  EXPIRE_ORDER
+  AUTO_CANCEL_ORDER
+}
+
+enum AutomationJobStatus {
+  SCHEDULED
+  RUNNING
+  DONE
+  FAILED
+  CANCELLED
+}
+
+enum BlacklistEntryType {
+  PHONE
+  EMAIL
+  ADDRESS
+}
+
+enum MessageTemplateType {
+  VERIFICATION
+  REMINDER
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+enum ChannelIntegrationProvider {
+  EMAIL
+  ZALO_OA
+  SMS
+  WHATSAPP
+}
+
+model CodShopSetting {
+  id                          Int                 @id @default(autoincrement())
+  shopId                      Int                 @unique
+  enabled                     Boolean             @default(true)
+  defaultChannel              VerificationChannel @default(EMAIL)
+  confirmationDeadlineMinutes Int                 @default(1440)
+  reminderDelayMinutes        Int                 @default(180)
+  maxReminders                Int                 @default(2)
+  autoCancelUnconfirmed       Boolean             @default(false)
+  pendingTag                  String              @default("cod_pending") @db.VarChar(64)
+  confirmedTag                String              @default("cod_confirmed") @db.VarChar(64)
+  cancelledTag                String              @default("cod_cancelled") @db.VarChar(64)
+  expiredTag                  String              @default("cod_no_response") @db.VarChar(64)
+  riskTag                     String              @default("cod_risky") @db.VarChar(64)
+  codPaymentNamesJson         Json?
+  createdAt                   DateTime            @default(now())
+  updatedAt                   DateTime            @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@map("cod_shop_settings")
+}
+
+model WebhookEvent {
+  id               Int       @id @default(autoincrement())
+  shopId           Int
+  topic            String    @db.VarChar(128)
+  shopifyWebhookId String?   @unique @db.VarChar(128)
+  shopifyOrderGid  String?   @db.VarChar(128)
+  payloadHash      String    @db.VarChar(128)
+  processed        Boolean   @default(false)
+  processedAt      DateTime?
+  error            String?   @db.Text
+  createdAt        DateTime  @default(now())
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, topic])
+  @@map("webhook_events")
+}
+
+model CodOrder {
+  id                  Int            @id @default(autoincrement())
+  shopId              Int
+  shopifyOrderGid     String         @db.VarChar(128)
+  orderName           String?        @db.VarChar(64)
+  orderNumber         String?        @db.VarChar(64)
+  currency            String?        @db.VarChar(8)
+  totalAmount         Decimal?       @db.Decimal(12, 2)
+  paymentMethod       String?        @db.VarChar(255)
+  financialStatus     String?        @db.VarChar(64)
+  fulfillmentStatus   String?        @db.VarChar(64)
+  customerName        String?        @db.VarChar(255)
+  customerEmail       String?        @db.VarChar(255)
+  customerPhone       String?        @db.VarChar(64)
+  normalizedPhone     String?        @db.VarChar(64)
+  shippingProvince    String?        @db.VarChar(128)
+  shippingCity        String?        @db.VarChar(128)
+  shippingDistrict    String?        @db.VarChar(128)
+  shippingAddressJson Json?
+  isCod               Boolean        @default(false)
+  status              CodOrderStatus @default(PENDING)
+  riskScore           Int            @default(0)
+  riskReasonJson      Json?
+  reminderCount       Int            @default(0)
+  expiresAt           DateTime?
+  verifiedAt          DateTime?
+  cancelledAt         DateTime?
+  lastSyncedAt        DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  shop     Shop                   @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  sessions VerificationSession[]
+  events   CodVerificationEvent[]
+  jobs     CodAutomationJob[]
+
+  @@unique([shopId, shopifyOrderGid])
+  @@index([shopId, status])
+  @@index([normalizedPhone])
+  @@map("cod_orders")
+}
+
+model VerificationSession {
+  id          Int                       @id @default(autoincrement())
+  codOrderId  Int
+  channel     VerificationChannel
+  tokenHash   String                    @unique @db.VarChar(128)
+  status      VerificationSessionStatus @default(ACTIVE)
+  expiresAt   DateTime
+  confirmedAt DateTime?
+  cancelledAt DateTime?
+  lastSentAt  DateTime?
+  ipAddress   String?                   @db.VarChar(64)
+  userAgent   String?                   @db.Text
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  codOrder   CodOrder               @relation(fields: [codOrderId], references: [id], onDelete: Cascade)
+  deliveries CodMessageDelivery[]
+  events     CodVerificationEvent[]
+
+  @@index([codOrderId, status])
+  @@map("verification_sessions")
+}
+
+model CodMessageDelivery {
+  id                    Int                   @id @default(autoincrement())
+  verificationSessionId Int
+  channel               VerificationChannel
+  provider              String?               @db.VarChar(64)
+  providerMessageId     String?               @db.VarChar(255)
+  recipient             String                @db.VarChar(255)
+  status                MessageDeliveryStatus @default(QUEUED)
+  error                 String?               @db.Text
+  sentAt                DateTime?
+  deliveredAt           DateTime?
+  createdAt             DateTime              @default(now())
+
+  session VerificationSession @relation(fields: [verificationSessionId], references: [id], onDelete: Cascade)
+
+  @@index([verificationSessionId, status])
+  @@map("cod_message_deliveries")
+}
+
+model CodRiskRule {
+  id            Int      @id @default(autoincrement())
+  shopId        Int
+  name          String   @db.VarChar(255)
+  enabled       Boolean  @default(true)
+  priority      Int      @default(100)
+  conditionJson Json
+  actionJson    Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, enabled, priority])
+  @@map("cod_risk_rules")
+}
+
+model CodBlacklistEntry {
+  id              Int                @id @default(autoincrement())
+  shopId          Int
+  type            BlacklistEntryType
+  value           String             @db.VarChar(255)
+  normalizedValue String             @db.VarChar(255)
+  reason          String?            @db.Text
+  hitCount        Int                @default(0)
+  lastSeenAt      DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, type, normalizedValue])
+  @@map("cod_blacklist_entries")
+}
+
+model CodAutomationJob {
+  id         Int                 @id @default(autoincrement())
+  codOrderId Int
+  type       AutomationJobType
+  status     AutomationJobStatus @default(SCHEDULED)
+  runAt      DateTime
+  attempts   Int                 @default(0)
+  lastError  String?             @db.Text
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  codOrder CodOrder @relation(fields: [codOrderId], references: [id], onDelete: Cascade)
+
+  @@index([status, runAt])
+  @@map("cod_automation_jobs")
+}
+
+model CodVerificationEvent {
+  id                    Int      @id @default(autoincrement())
+  codOrderId            Int
+  verificationSessionId Int?
+  type                  String   @db.VarChar(64)
+  message               String?  @db.Text
+  metadataJson          Json?
+  createdAt             DateTime @default(now())
+
+  codOrder CodOrder             @relation(fields: [codOrderId], references: [id], onDelete: Cascade)
+  session  VerificationSession? @relation(fields: [verificationSessionId], references: [id], onDelete: SetNull)
+
+  @@index([codOrderId, type])
+  @@map("cod_verification_events")
+}
+
+model CodMessageTemplate {
+  id        Int                 @id @default(autoincrement())
+  shopId    Int
+  type      MessageTemplateType
+  channel   VerificationChannel
+  locale    String              @default("vi") @db.VarChar(16)
+  subject   String?             @db.VarChar(255)
+  body      String              @db.Text
+  enabled   Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, type, channel, locale])
+  @@map("cod_message_templates")
+}
+
+model CodChannelIntegration {
+  id                  Int                        @id @default(autoincrement())
+  shopId              Int
+  provider            ChannelIntegrationProvider
+  enabled             Boolean                    @default(false)
+  senderName          String?                    @db.VarChar(128)
+  configJson          Json?
+  encryptedSecretJson Json?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, provider])
+  @@map("cod_channel_integrations")
 }
