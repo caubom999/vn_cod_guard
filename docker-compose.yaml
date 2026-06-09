@@ -44,7 +44,7 @@ services:
       MYSQL_USER: ${MYSQL_APP_USER}
       MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
     ports:
-      - '${MYSQL_PORT:-3306}:3306'
+      - '${MYSQL_PORT:-3309}:3306'
     volumes:
       - mysql_data:/var/lib/mysql
     restart: always
