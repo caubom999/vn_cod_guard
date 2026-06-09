@@ -138,6 +138,7 @@ model WebhookEvent {
   shopifyWebhookId String?   @unique @db.VarChar(128)
   shopifyOrderGid  String?   @db.VarChar(128)
   payloadHash      String    @db.VarChar(128)
+  payloadJson      Json?
   processed        Boolean   @default(false)
   processedAt      DateTime?
   error            String?   @db.Text

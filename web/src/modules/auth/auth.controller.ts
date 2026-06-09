@@ -48,10 +48,11 @@ export class AuthController {
       scopes: session.scope,
     });
 
-    const redirectUrl = await this.shopifyService.shopify.auth.getEmbeddedAppUrl({
-      rawRequest: req,
-      rawResponse: res,
-    });
+    const redirectUrl =
+      await this.shopifyService.shopify.auth.getEmbeddedAppUrl({
+        rawRequest: req,
+        rawResponse: res,
+      });
 
     return res.redirect(redirectUrl.replace(/\/$/, ''));
   }
