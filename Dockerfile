@@ -1,6 +1,6 @@
-# Base stage for node modules
+# Dependencies stage for node modules
 FROM node:20-slim AS deps
-WORKDIR /app-vt
+WORKDIR /vn-cod-guard
 
 # Install OpenSSL dependencies
 RUN apt-get update && \
@@ -27,7 +27,7 @@ ARG SHOPIFY_APP_PROXY=/apps/vt
 ARG VITE_HOST
 ARG VITE_EMBEDDED_ID
 
-WORKDIR /app-vt
+WORKDIR /vn-cod-guard
 
 # Cài certs để gọi API nếu cần
 RUN apt-get update && \
@@ -35,7 +35,7 @@ RUN apt-get update && \
     apt-get clean
 
 # Copy deps và frontend code
-COPY --from=deps /app-vt/frontend/node_modules ./frontend/node_modules
+COPY --from=deps /vn-cod-guard/frontend/node_modules ./frontend/node_modules
 COPY web/frontend ./frontend
 
 # Build frontend
@@ -52,7 +52,7 @@ RUN if [ -z "$SHOPIFY_API_KEY" ]; then \
 
 # Backend build stage
 FROM node:20-slim AS backend-builder
-WORKDIR /app-vt
+WORKDIR /vn-cod-guard
 
 # Install OpenSSL dependencies for Prisma
 RUN apt-get update && \
@@ -60,8 +60,8 @@ RUN apt-get update && \
     apt-get clean
 
 # Copy deps và source code
-COPY --from=deps /app-vt/node_modules ./node_modules
-COPY --from=frontend-builder /app-vt/frontend/dist ./frontend/dist
+COPY --from=deps /vn-cod-guard/node_modules ./node_modules
+COPY --from=frontend-builder /vn-cod-guard/frontend/dist ./frontend/dist
 COPY web ./
 
 # Build backend
@@ -71,7 +71,7 @@ RUN npm install -g @nestjs/cli && \
 
 # Production stage
 FROM node:20-slim AS production
-WORKDIR /app-vt
+WORKDIR /vn-cod-guard
 EXPOSE 8080
 
 # Install runtime tools
@@ -80,7 +80,7 @@ RUN apt-get update && \
     apt-get clean && \
     npm install -g pm2 pm2-logrotate
 
-COPY --from=backend-builder /app-vt/ ./
+COPY --from=backend-builder /vn-cod-guard/ ./
 
 RUN npx prisma generate
 
