@@ -1,6 +1,6 @@
 {% if block.settings.enabled %}
   <script>
-    window.BaseShopifyApp = {
+    window.VnCodGuard = {
       shop: {{ shop.permanent_domain | json }},
     };
   </script>
@@ -8,7 +8,7 @@
 
 {% schema %}
 {
-  "name": "Base app embed",
+  "name": "VN-Cod-Guard app embed",
   "target": "body",
   "settings": [
     {

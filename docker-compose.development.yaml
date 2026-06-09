@@ -1,6 +1,6 @@
 services:
   app:
-    container_name: app-vt
+    container_name: vn-cod-guard-app
     platform: linux/amd64
     build:
       context: .
@@ -15,7 +15,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./web:/app-vt
+      - ./web:/vn-cod-guard
     environment:
       - VITE_APP_SHOPIFY_API_KEY=${SHOPIFY_API_KEY}
       - VITE_CDN_URL=${VITE_CDN_URL}

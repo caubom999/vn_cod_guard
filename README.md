@@ -1,6 +1,6 @@
-# Base of VT
+# VN-Cod-Guard
 
-Clean Shopify embedded app base using NestJS, React, Polaris, App Bridge, Prisma, and MySQL.
+Shopify embedded app for Vietnam COD order protection, built with NestJS, React, Polaris, App Bridge, Prisma, and MySQL.
 
 ## Stack
 
@@ -8,7 +8,7 @@ Clean Shopify embedded app base using NestJS, React, Polaris, App Bridge, Prisma
 - NestJS backend in `web`
 - React + Vite frontend in `web/frontend`
 - Prisma + MySQL
-- Minimal theme app extension in `extensions/base-theme-extension`
+- Minimal theme app extension in `extensions/vn-cod-guard-theme-extension`
 
 ## Local Setup
 
@@ -56,7 +56,7 @@ npm run build --prefix web
 npm run build --prefix web/frontend
 ```
 
-## Base API
+## App API
 
 - `GET /health`
 - `GET /api/auth`

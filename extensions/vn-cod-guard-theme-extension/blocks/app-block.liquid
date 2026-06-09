@@ -1,4 +1,4 @@
-<div class="base-app-block" data-shop="{{ shop.permanent_domain }}">
+<div class="vn-cod-guard-app-block" data-shop="{{ shop.permanent_domain }}">
   {% if block.settings.heading != blank %}
     <h2>{{ block.settings.heading }}</h2>
   {% endif %}
@@ -10,15 +10,15 @@
 
 {% schema %}
 {
-  "name": "Base app block",
+  "name": "VN-Cod-Guard app block",
   "target": "section",
-  "stylesheet": "base-app.css",
+  "stylesheet": "vn-cod-guard-app.css",
   "settings": [
     {
       "type": "text",
       "id": "heading",
       "label": "Heading",
-      "default": "Base app block"
+      "default": "VN-Cod-Guard"
     },
     {
       "type": "textarea",

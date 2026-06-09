@@ -83,7 +83,7 @@ build_production:
 #       export APP_IMAGE=${CI_REGISTRY_IMAGE}:develop;
 #       docker compose down;
 #       docker compose up -d;
-#       docker exec app-vt npx prisma generate;
+#       docker exec vn-cod-guard-app npx prisma generate;
 #       docker image prune -f;"
 #   rules:
 #     - if: $CI_COMMIT_BRANCH == "develop"
@@ -114,7 +114,7 @@ build_production:
 #       export APP_IMAGE=${CI_REGISTRY_IMAGE}:latest;
 #       docker compose down;
 #       docker compose up -d;
-#       docker exec app-vt npx prisma generate;
+#       docker exec vn-cod-guard-app npx prisma generate;
 #       docker image prune -f;"
 #   rules:
 #     - if: $CI_COMMIT_BRANCH == "main"

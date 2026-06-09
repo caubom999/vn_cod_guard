@@ -15,14 +15,14 @@ export default function Dashboard() {
   const { data: shop, isLoading, error } = useCurrentShop();
 
   return (
-    <Page title="Base App">
+    <Page title="VN-Cod-Guard">
       <Layout>
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
               <InlineStack align="space-between" blockAlign="center">
                 <Text as="h2" variant="headingMd">
-                  Shopify app base
+                  Vietnam COD order guard
                 </Text>
                 <Badge tone={shop ? 'success' : 'attention'}>
                   {shop ? 'Connected' : 'Checking'}

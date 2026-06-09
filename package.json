@@ -1,9 +1,9 @@
 {
-  "name": "base-of-vt",
+  "name": "vn-cod-guard",
   "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "author": "vt",
+  "author": "VN Cod Guard",
   "workspaces": [
     "extensions/*",
     "web",
