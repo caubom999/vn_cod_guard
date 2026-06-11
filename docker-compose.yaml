@@ -2,12 +2,22 @@ services:
   app:
     container_name: vn-cod-guard-app
     image: ${APP_IMAGE:-vn-cod-guard-app:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MODE: production
+        SHOPIFY_API_KEY: ${SHOPIFY_API_KEY}
+        VITE_CDN_URL: ${VITE_CDN_URL:-/}
+        SHOPIFY_APP_PROXY: ${SHOPIFY_APP_PROXY:-/apps/vn-cod-guard}
+        VITE_HOST: ${VITE_HOST:-${HOST:-http://localhost:8080}}
+        VITE_EMBEDDED_ID: ${VITE_EMBEDDED_ID:-}
     ports:
       - '${APP_PORT:-8080}:8080'
     environment:
       NODE_ENV: production
       PORT: 8080
-      HOST: ${HOST}
+      HOST: ${HOST:-http://localhost:8080}
       APP_SCHEME: ${APP_SCHEME:-https}
       SHOPIFY_API_KEY: ${SHOPIFY_API_KEY}
       SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET}
@@ -34,7 +44,7 @@ services:
       MYSQL_USER: ${MYSQL_APP_USER}
       MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
     ports:
-      - '${MYSQL_PORT:-3306}:3306'
+      - '${MYSQL_PORT:-3309}:3306'
     volumes:
       - mysql_data:/var/lib/mysql
     restart: always
