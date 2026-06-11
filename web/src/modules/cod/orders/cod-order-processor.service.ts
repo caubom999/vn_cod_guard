@@ -1,0 +1,389 @@
+import { Injectable, Logger } from '@nestjs/common';
+import {
+  CodOrderStatus,
+  CodShopSetting,
+  Prisma,
+  Shop,
+  WebhookEvent,
+} from '@prisma/client';
+import { ShopifyService } from '../../shopify/shopify.service';
+import {
+  COD_DEFAULT_PAYMENT_NAMES,
+  COD_DEFAULT_TAGS,
+  COD_RISK_REVIEW_THRESHOLD,
+} from '../cod.constants';
+import { normalizeVietnamPhone } from '../utils/phone-normalizer';
+import { CodOrderRepository } from './cod-order.repository';
+
+type ShopifyOrderPayload = Record<string, unknown>;
+
+type ProcessOrdersCreateInput = {
+  shop: Shop;
+  event: WebhookEvent;
+  payload: ShopifyOrderPayload;
+};
+
+type RiskResult = {
+  score: number;
+  reasons: string[];
+};
+
+@Injectable()
+export class CodOrderProcessorService {
+  private readonly logger = new Logger(CodOrderProcessorService.name);
+
+  constructor(
+    private readonly orders: CodOrderRepository,
+    private readonly shopify: ShopifyService,
+  ) {}
+
+  async processOrdersCreate({
+    shop,
+    event,
+    payload,
+  }: ProcessOrdersCreateInput) {
+    const setting = await this.orders.getOrCreateShopSetting(shop.id);
+    const paymentNames = this.getPaymentNames(payload);
+    const isCod = this.isCodPayment(paymentNames, setting);
+    const shopifyOrderGid = this.getShopifyOrderGid(payload, event);
+
+    if (!shopifyOrderGid) {
+      throw new Error('Missing Shopify order id in orders/create webhook');
+    }
+
+    const customer = this.getObject(payload, 'customer');
+    const shippingAddress = this.getObject(payload, 'shipping_address');
+    const billingAddress = this.getObject(payload, 'billing_address');
+    const customerPhone = this.firstString(
+      this.getString(shippingAddress, 'phone'),
+      this.getString(customer, 'phone'),
+      this.getString(billingAddress, 'phone'),
+    );
+    const normalizedPhone = normalizeVietnamPhone(customerPhone);
+    const risk = this.calculateRisk({
+      isCod,
+      normalizedPhone,
+      shippingAddress,
+    });
+    const status = this.getInitialStatus(isCod, risk);
+    const expiresAt = isCod
+      ? this.addMinutes(new Date(), setting.confirmationDeadlineMinutes)
+      : null;
+
+    const codOrder = await this.orders.upsertOrder({
+      shopId: shop.id,
+      shopifyOrderGid,
+      orderName: this.getString(payload, 'name'),
+      orderNumber: this.getOrderNumber(payload),
+      currency: this.getString(payload, 'currency'),
+      totalAmount: this.getOrderAmount(payload),
+      paymentMethod: paymentNames.join(', ') || null,
+      financialStatus: this.getString(payload, 'financial_status'),
+      fulfillmentStatus: this.getString(payload, 'fulfillment_status'),
+      customerName: this.getCustomerName(customer, shippingAddress),
+      customerEmail: this.firstString(
+        this.getString(customer, 'email'),
+        this.getString(payload, 'email'),
+      ),
+      customerPhone,
+      normalizedPhone,
+      shippingProvince: this.getString(shippingAddress, 'province'),
+      shippingCity: this.getString(shippingAddress, 'city'),
+      shippingDistrict: this.firstString(
+        this.getString(shippingAddress, 'district'),
+        this.getString(shippingAddress, 'district_name'),
+        this.getString(shippingAddress, 'county'),
+      ),
+      shippingAddressJson: shippingAddress as Prisma.InputJsonValue,
+      isCod,
+      status,
+      riskScore: risk.score,
+      riskReasonJson: risk.reasons as Prisma.InputJsonValue,
+      expiresAt,
+      lastSyncedAt: new Date(),
+    });
+
+    await this.orders.createEvent({
+      codOrderId: codOrder.id,
+      type: isCod ? 'ORDER_CAPTURED' : 'ORDER_SKIPPED_NON_COD',
+      message: isCod
+        ? 'COD order snapshot created from orders/create webhook.'
+        : 'Order snapshot created and skipped because payment method is not COD.',
+      metadataJson: {
+        webhookEventId: event.id,
+        paymentNames,
+        tags: this.getTagsForOrder(setting, isCod, risk),
+      } as Prisma.InputJsonValue,
+    });
+
+    if (isCod) {
+      await this.syncShopifyTags({
+        shopDomain: shop.domain,
+        shopifyOrderGid,
+        codOrderId: codOrder.id,
+        tags: this.getTagsForOrder(setting, isCod, risk),
+      });
+    }
+
+    return codOrder;
+  }
+
+  private async syncShopifyTags(input: {
+    shopDomain: string;
+    shopifyOrderGid: string;
+    codOrderId: number;
+    tags: string[];
+  }) {
+    if (!input.tags.length) {
+      return;
+    }
+
+    try {
+      const response = await this.shopify.graphql(
+        input.shopDomain,
+        `#graphql
+          mutation AddCodGuardTags($id: ID!, $tags: [String!]!) {
+            tagsAdd(id: $id, tags: $tags) {
+              node {
+                id
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }
+        `,
+        {
+          id: input.shopifyOrderGid,
+          tags: input.tags,
+        },
+      );
+
+      const userErrors = this.getGraphqlUserErrors(response);
+
+      if (userErrors.length) {
+        await this.orders.createEvent({
+          codOrderId: input.codOrderId,
+          type: 'SHOPIFY_TAG_SYNC_FAILED',
+          message: userErrors.map((error) => error.message).join('; '),
+          metadataJson: {
+            tags: input.tags,
+            userErrors,
+          } as Prisma.InputJsonValue,
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      this.logger.warn(`Could not sync Shopify COD tags: ${message}`);
+
+      await this.orders.createEvent({
+        codOrderId: input.codOrderId,
+        type: 'SHOPIFY_TAG_SYNC_FAILED',
+        message,
+        metadataJson: { tags: input.tags } as Prisma.InputJsonValue,
+      });
+    }
+  }
+
+  private getPaymentNames(payload: ShopifyOrderPayload) {
+    const gatewayNames = this.getStringArray(payload, 'payment_gateway_names');
+    const fallbackNames = [
+      this.getString(payload, 'gateway'),
+      this.getString(payload, 'processing_method'),
+    ].filter(Boolean) as string[];
+
+    return [...gatewayNames, ...fallbackNames]
+      .map((name) => name.trim())
+      .filter(Boolean);
+  }
+
+  private isCodPayment(paymentNames: string[], setting: CodShopSetting) {
+    const configuredNames = this.getConfiguredCodPaymentNames(setting);
+    const codNames = configuredNames.length
+      ? configuredNames
+      : COD_DEFAULT_PAYMENT_NAMES;
+    const normalizedCodNames = codNames.map((name) => this.normalizeText(name));
+
+    return paymentNames.some((name) =>
+      normalizedCodNames.some((codName) =>
+        this.normalizeText(name).includes(codName),
+      ),
+    );
+  }
+
+  private getConfiguredCodPaymentNames(setting: CodShopSetting) {
+    if (!Array.isArray(setting.codPaymentNamesJson)) {
+      return [];
+    }
+
+    return setting.codPaymentNamesJson.filter(
+      (name): name is string =>
+        typeof name === 'string' && Boolean(name.trim()),
+    );
+  }
+
+  private calculateRisk(input: {
+    isCod: boolean;
+    normalizedPhone: string | null;
+    shippingAddress: Record<string, unknown> | null;
+  }): RiskResult {
+    if (!input.isCod) {
+      return { score: 0, reasons: [] };
+    }
+
+    const reasons: string[] = [];
+    let score = 0;
+
+    if (!input.normalizedPhone) {
+      score += 60;
+      reasons.push('missing_or_invalid_phone');
+    }
+
+    if (!input.shippingAddress) {
+      score += 30;
+      reasons.push('missing_shipping_address');
+    }
+
+    return { score: Math.min(score, 100), reasons };
+  }
+
+  private getInitialStatus(isCod: boolean, risk: RiskResult) {
+    if (!isCod) {
+      return CodOrderStatus.SKIPPED;
+    }
+
+    return risk.score >= COD_RISK_REVIEW_THRESHOLD
+      ? CodOrderStatus.NEEDS_REVIEW
+      : CodOrderStatus.PENDING;
+  }
+
+  private getTagsForOrder(
+    setting: CodShopSetting,
+    isCod: boolean,
+    risk: RiskResult,
+  ) {
+    if (!isCod) {
+      return [];
+    }
+
+    const tags = [setting.pendingTag || COD_DEFAULT_TAGS.pending];
+
+    if (risk.score >= COD_RISK_REVIEW_THRESHOLD) {
+      tags.push(setting.riskTag || COD_DEFAULT_TAGS.risky);
+    }
+
+    return tags;
+  }
+
+  private getShopifyOrderGid(
+    payload: ShopifyOrderPayload,
+    event: WebhookEvent,
+  ) {
+    if (event.shopifyOrderGid) {
+      return event.shopifyOrderGid;
+    }
+
+    const adminGraphqlApiId = this.getString(payload, 'admin_graphql_api_id');
+
+    if (adminGraphqlApiId) {
+      return adminGraphqlApiId;
+    }
+
+    const id = this.getString(payload, 'id') || this.getNumber(payload, 'id');
+
+    return id ? `gid://shopify/Order/${id}` : null;
+  }
+
+  private getOrderAmount(payload: ShopifyOrderPayload) {
+    const amount = this.firstString(
+      this.getString(payload, 'current_total_price'),
+      this.getString(payload, 'total_price'),
+      this.getString(payload, 'subtotal_price'),
+    );
+
+    return amount ? new Prisma.Decimal(amount) : null;
+  }
+
+  private getOrderNumber(payload: ShopifyOrderPayload) {
+    const number = this.getNumber(payload, 'order_number');
+
+    return number ? String(number) : this.getString(payload, 'order_number');
+  }
+
+  private getCustomerName(
+    customer: Record<string, unknown> | null,
+    shippingAddress: Record<string, unknown> | null,
+  ) {
+    const shippingName = this.getString(shippingAddress, 'name');
+
+    if (shippingName) {
+      return shippingName;
+    }
+
+    return (
+      [
+        this.getString(customer, 'first_name'),
+        this.getString(customer, 'last_name'),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || null
+    );
+  }
+
+  private getGraphqlUserErrors(response: unknown): Array<{ message: string }> {
+    const body = response as {
+      data?: { tagsAdd?: { userErrors?: Array<{ message?: string }> } };
+    };
+
+    return (body.data?.tagsAdd?.userErrors || [])
+      .filter((error) => error.message)
+      .map((error) => ({ message: error.message || '' }));
+  }
+
+  private addMinutes(date: Date, minutes: number) {
+    return new Date(date.getTime() + minutes * 60 * 1000);
+  }
+
+  private getObject(source: Record<string, unknown>, key: string) {
+    const value = source[key];
+
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
+  }
+
+  private getString(source: Record<string, unknown> | null, key: string) {
+    const value = source?.[key];
+
+    return typeof value === 'string' && value.trim() ? value : null;
+  }
+
+  private getNumber(source: Record<string, unknown>, key: string) {
+    const value = source[key];
+
+    return typeof value === 'number' ? value : null;
+  }
+
+  private getStringArray(source: Record<string, unknown>, key: string) {
+    const value = source[key];
+
+    return Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === 'string')
+      : [];
+  }
+
+  private firstString(...values: Array<string | null | undefined>) {
+    return values.find((value) => value && value.trim()) || null;
+  }
+
+  private normalizeText(value: string) {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+}

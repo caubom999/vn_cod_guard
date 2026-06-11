@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { createHash } from 'crypto';
+import { CodOrderProcessorService } from '../cod/orders/cod-order-processor.service';
 import { ShopService } from '../shop/shop.service';
 import { ORDERS_CREATE_WEBHOOK_TOPIC } from './webhooks.constants';
 import { WebhooksRepository } from './webhooks.repository';
@@ -16,6 +16,7 @@ export class WebhooksService {
   constructor(
     private readonly shops: ShopService,
     private readonly webhooks: WebhooksRepository,
+    private readonly codOrderProcessor: CodOrderProcessorService,
   ) {}
 
   async receiveOrdersCreate(
@@ -47,8 +48,18 @@ export class WebhooksService {
       shopifyWebhookId: webhookId,
       shopifyOrderGid: this.getShopifyOrderGid(payload),
       payloadHash: this.hashPayload(request.rawBody),
-      payloadJson: payload as Prisma.InputJsonValue,
     });
+
+    try {
+      await this.codOrderProcessor.processOrdersCreate({
+        shop,
+        event,
+        payload,
+      });
+      await this.webhooks.markProcessed(event.id);
+    } catch (error) {
+      await this.webhooks.markFailed(event.id, this.getErrorMessage(error));
+    }
 
     return { status: 'accepted', eventId: event.id };
   }
@@ -77,6 +88,10 @@ export class WebhooksService {
     }
 
     return undefined;
+  }
+
+  private getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : String(error);
   }
 
   private getRequiredHeader(request: ShopifyWebhookRequest, name: string) {

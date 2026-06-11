@@ -17,4 +17,25 @@ export class WebhooksRepository {
   create(data: Prisma.WebhookEventUncheckedCreateInput): Promise<WebhookEvent> {
     return this.prisma.webhookEvent.create({ data });
   }
+
+  markProcessed(id: number): Promise<WebhookEvent> {
+    return this.prisma.webhookEvent.update({
+      where: { id },
+      data: {
+        processed: true,
+        processedAt: new Date(),
+        error: null,
+      },
+    });
+  }
+
+  markFailed(id: number, error: string): Promise<WebhookEvent> {
+    return this.prisma.webhookEvent.update({
+      where: { id },
+      data: {
+        processed: false,
+        error,
+      },
+    });
+  }
 }
