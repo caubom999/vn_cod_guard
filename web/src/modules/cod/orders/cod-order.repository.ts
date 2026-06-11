@@ -38,6 +38,7 @@ export class CodOrderRepository {
         shippingCity: data.shippingCity,
         shippingDistrict: data.shippingDistrict,
         shippingAddressJson: data.shippingAddressJson,
+        lineItemsJson: data.lineItemsJson,
         isCod: data.isCod,
         status: data.status,
         riskScore: data.riskScore,

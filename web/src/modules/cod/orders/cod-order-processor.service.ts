@@ -13,6 +13,7 @@ import {
   COD_RISK_REVIEW_THRESHOLD,
 } from '../cod.constants';
 import { normalizeVietnamPhone } from '../utils/phone-normalizer';
+import { VerificationService } from '../verification/verification.service';
 import { CodOrderRepository } from './cod-order.repository';
 
 type ShopifyOrderPayload = Record<string, unknown>;
@@ -35,6 +36,7 @@ export class CodOrderProcessorService {
   constructor(
     private readonly orders: CodOrderRepository,
     private readonly shopify: ShopifyService,
+    private readonly verifications: VerificationService,
   ) {}
 
   async processOrdersCreate({
@@ -95,6 +97,7 @@ export class CodOrderProcessorService {
         this.getString(shippingAddress, 'county'),
       ),
       shippingAddressJson: shippingAddress as Prisma.InputJsonValue,
+      lineItemsJson: this.getLineItems(payload) as Prisma.InputJsonValue,
       isCod,
       status,
       riskScore: risk.score,
@@ -116,7 +119,25 @@ export class CodOrderProcessorService {
       } as Prisma.InputJsonValue,
     });
 
-    if (isCod) {
+    if (isCod && expiresAt) {
+      const { session } = await this.verifications.createSessionForOrder({
+        codOrderId: codOrder.id,
+        expiresAt,
+        channel: setting.defaultChannel,
+      });
+
+      await this.orders.createEvent({
+        codOrderId: codOrder.id,
+        verificationSessionId: session.id,
+        type: 'VERIFICATION_LINK_READY',
+        message:
+          'Verification token was generated and only tokenHash was stored.',
+        metadataJson: {
+          tokenHash: session.tokenHash,
+          publicPath: '/verify/:token',
+        } as Prisma.InputJsonValue,
+      });
+
       await this.syncShopifyTags({
         shopDomain: shop.domain,
         shopifyOrderGid,
@@ -185,6 +206,29 @@ export class CodOrderProcessorService {
         metadataJson: { tags: input.tags } as Prisma.InputJsonValue,
       });
     }
+  }
+
+  private getLineItems(payload: ShopifyOrderPayload) {
+    const lineItems = payload.line_items;
+
+    if (!Array.isArray(lineItems)) {
+      return [];
+    }
+
+    return lineItems.map((item) => {
+      const lineItem =
+        item && typeof item === 'object'
+          ? (item as Record<string, unknown>)
+          : {};
+
+      return {
+        title: this.getString(lineItem, 'title'),
+        variantTitle: this.getString(lineItem, 'variant_title'),
+        sku: this.getString(lineItem, 'sku'),
+        quantity: this.getNumber(lineItem, 'quantity') || 1,
+        price: this.getString(lineItem, 'price'),
+      };
+    });
   }
 
   private getPaymentNames(payload: ShopifyOrderPayload) {
