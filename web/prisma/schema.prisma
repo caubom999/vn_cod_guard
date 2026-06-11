@@ -169,6 +169,7 @@ model CodOrder {
   shippingCity        String?        @db.VarChar(128)
   shippingDistrict    String?        @db.VarChar(128)
   shippingAddressJson Json?
+  lineItemsJson       Json?
   isCod               Boolean        @default(false)
   status              CodOrderStatus @default(PENDING)
   riskScore           Int            @default(0)
