@@ -113,7 +113,7 @@ export default function Dashboard() {
   const [selectedTab, setSelectedTab] = useState(0);
 
   return (
-    <Page title="VN-Cod-Guard">
+    <Page title="Vietnam COD Guard">
       <Layout>
         <Layout.Section>
           <BlockStack gap="400">
@@ -568,7 +568,7 @@ function SettingsScreen() {
         ) : (
           <FormLayout>
             <Checkbox
-              label="Enable VN-Cod-Guard"
+              label="Enable Vietnam COD Guard"
               checked={form.enabled}
               onChange={(checked) => setField('enabled', checked)}
             />

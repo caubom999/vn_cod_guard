@@ -13,7 +13,7 @@ export type BillingPlanDefinition = {
 export const BILLING_PLANS: Record<BillingPlanKey, BillingPlanDefinition> = {
   FREE: {
     key: BillingPlanKey.FREE,
-    name: 'VN-Cod-Guard Free',
+    name: 'Vietnam COD Guard Free',
     displayName: 'Free',
     priceUsd: 0,
     monthlyCodOrderLimit: 50,
@@ -22,7 +22,7 @@ export const BILLING_PLANS: Record<BillingPlanKey, BillingPlanDefinition> = {
   },
   STARTER: {
     key: BillingPlanKey.STARTER,
-    name: 'VN-Cod-Guard Starter',
+    name: 'Vietnam COD Guard Starter',
     displayName: 'Starter',
     priceUsd: 9,
     monthlyCodOrderLimit: 500,
@@ -35,7 +35,7 @@ export const BILLING_PLANS: Record<BillingPlanKey, BillingPlanDefinition> = {
   },
   GROWTH: {
     key: BillingPlanKey.GROWTH,
-    name: 'VN-Cod-Guard Growth',
+    name: 'Vietnam COD Guard Growth',
     displayName: 'Growth',
     priceUsd: 19,
     monthlyCodOrderLimit: 2000,
@@ -48,7 +48,7 @@ export const BILLING_PLANS: Record<BillingPlanKey, BillingPlanDefinition> = {
   },
   PRO: {
     key: BillingPlanKey.PRO,
-    name: 'VN-Cod-Guard Pro',
+    name: 'Vietnam COD Guard Pro',
     displayName: 'Pro',
     priceUsd: 39,
     monthlyCodOrderLimit: 10000,

@@ -1,4 +1,4 @@
-# VN-Cod-Guard
+# Vietnam COD Guard
 
 Shopify embedded app for Vietnam COD order protection, built with NestJS, React, Polaris, App Bridge, Prisma, and MySQL.
 

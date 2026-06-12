@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "6e41fd433a097099c22bf697ca13e998"
-name = "VN-Cod-Guard"
+name = "Vietnam COD Guard"
 application_url = "https://example.com"
 embedded = true
 

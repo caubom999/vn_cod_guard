@@ -1,0 +1,8 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" rx="220" fill="#123C69"/>
+  <path d="M512 148L802 262V480C802 664 684 813 512 876C340 813 222 664 222 480V262L512 148Z" fill="#FFFFFF"/>
+  <path d="M512 210L738 299V480C738 622 649 738 512 794C375 738 286 622 286 480V299L512 210Z" fill="#1B8A5A"/>
+  <path d="M368 504L463 599L665 389" stroke="#FFFFFF" stroke-width="72" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M346 728H678" stroke="#FFFFFF" stroke-width="38" stroke-linecap="round" opacity="0.85"/>
+  <text x="512" y="330" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="112" font-weight="700" fill="#FFFFFF">COD</text>
+</svg>

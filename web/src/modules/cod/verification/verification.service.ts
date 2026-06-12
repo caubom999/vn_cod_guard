@@ -240,7 +240,7 @@ export class VerificationService {
       decision === 'confirm'
         ? setting?.confirmedTag || COD_DEFAULT_TAGS.confirmed
         : setting?.cancelledTag || COD_DEFAULT_TAGS.cancelled;
-    const noteLine = `[VN-Cod-Guard] COD ${decision === 'confirm' ? 'confirmed' : 'cancelled'} by customer at ${new Date().toISOString()}.`;
+    const noteLine = `[Vietnam COD Guard] COD ${decision === 'confirm' ? 'confirmed' : 'cancelled'} by customer at ${new Date().toISOString()}.`;
 
     try {
       await this.shopify.graphql(shop.domain, REMOVE_SHOPIFY_TAGS, {
