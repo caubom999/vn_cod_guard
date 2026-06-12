@@ -84,7 +84,7 @@ export class MessagingService {
     const delivery = await this.messages.createDelivery({
       verificationSessionId: session.id,
       channel: VerificationChannel.EMAIL,
-      provider: String(integration.provider),
+      provider: this.emailProvider.getProviderName(integration.configJson),
       recipient: recipient || 'missing-email',
       subject,
       body,
@@ -105,6 +105,7 @@ export class MessagingService {
         subject,
         body,
         fromName: integration.senderName,
+        integrationConfig: integration.configJson,
       });
 
       const updatedDelivery = await this.messages.markDeliverySent(
