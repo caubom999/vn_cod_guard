@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ShopModule } from '../shop/shop.module';
 import { ShopifyModule } from '../shopify/shopify.module';
+import { AutomationRepository } from './automation/automation.repository';
+import { AutomationService } from './automation/automation.service';
 import { MessagingRepository } from './messaging/messaging.repository';
 import { MessagingService } from './messaging/messaging.service';
 import { MessageTemplateRenderer } from './messaging/message-template.renderer';
@@ -19,6 +21,8 @@ import { VerificationService } from './verification/verification.service';
   imports: [PrismaModule, ShopModule, ShopifyModule],
   controllers: [VerificationController, CodSettingsController],
   providers: [
+    AutomationService,
+    AutomationRepository,
     MessagingRepository,
     MessagingService,
     MessageTemplateRenderer,

@@ -49,13 +49,13 @@ export class CodSettingsService {
     data.confirmationDeadlineMinutes = this.numberInRange(
       dto.confirmationDeadlineMinutes,
       'confirmationDeadlineMinutes',
-      15,
+      1,
       10080,
     );
     data.reminderDelayMinutes = this.numberInRange(
       dto.reminderDelayMinutes,
       'reminderDelayMinutes',
-      5,
+      1,
       10080,
     );
     data.maxReminders = this.numberInRange(

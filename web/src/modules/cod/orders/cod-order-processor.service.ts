@@ -7,6 +7,7 @@ import {
   WebhookEvent,
 } from '@prisma/client';
 import { ShopifyService } from '../../shopify/shopify.service';
+import { AutomationService } from '../automation/automation.service';
 import {
   COD_DEFAULT_PAYMENT_NAMES,
   COD_DEFAULT_TAGS,
@@ -37,6 +38,7 @@ export class CodOrderProcessorService {
     private readonly orders: CodOrderRepository,
     private readonly shopify: ShopifyService,
     private readonly verifications: VerificationService,
+    private readonly automation: AutomationService,
   ) {}
 
   async processOrdersCreate({
@@ -134,8 +136,14 @@ export class CodOrderProcessorService {
           'Verification token was generated and only tokenHash was stored.',
         metadataJson: {
           tokenHash: session.tokenHash,
-          publicPath: '/verify/:token',
+          publicPath: '/api/verify/:token',
         } as Prisma.InputJsonValue,
+      });
+
+      await this.automation.scheduleInitialJobs({
+        codOrderId: codOrder.id,
+        expiresAt,
+        setting,
       });
 
       await this.syncShopifyTags({
