@@ -93,7 +93,7 @@ export class EmailProvider {
 
     this.logger.log(
       [
-        '[VN-Cod-Guard] Email verification queued via dev provider',
+        '[Vietnam COD Guard] Email verification queued via dev provider',
         'To: ' + input.to,
         'Subject: ' + input.subject,
         input.body,

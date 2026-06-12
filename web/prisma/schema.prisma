@@ -37,6 +37,8 @@ model Shop {
   blacklistEntries    CodBlacklistEntry[]
   messageTemplates    CodMessageTemplate[]
   channelIntegrations CodChannelIntegration[]
+  billingSubscription ShopBillingSubscription?
+  billingEvents       ShopBillingEvent[]
 
   @@map("shops")
 }
@@ -106,6 +108,32 @@ enum ChannelIntegrationProvider {
   ZALO_OA
   SMS
   WHATSAPP
+}
+
+enum BillingPlanKey {
+  FREE
+  STARTER
+  GROWTH
+  PRO
+}
+
+enum BillingSubscriptionStatus {
+  ACTIVE
+  PENDING
+  CANCELLED
+  DECLINED
+  EXPIRED
+  FROZEN
+}
+
+enum BillingEventType {
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_ACTIVATED
+  SUBSCRIPTION_CANCELLED
+  PLAN_CHANGED
+  USAGE_LIMIT_REACHED
+  USAGE_LIMIT_WARNING
+  SYNCED_FROM_SHOPIFY
 }
 
 model CodShopSetting {
@@ -338,4 +366,38 @@ model CodChannelIntegration {
 
   @@unique([shopId, provider])
   @@map("cod_channel_integrations")
+}
+
+model ShopBillingSubscription {
+  id                     Int                       @id @default(autoincrement())
+  shopId                 Int                       @unique
+  planKey                BillingPlanKey            @default(FREE)
+  status                 BillingSubscriptionStatus @default(ACTIVE)
+  shopifySubscriptionGid String?                   @unique @db.VarChar(128)
+  confirmationUrl        String?                   @db.Text
+  trialEndsAt            DateTime?
+  currentPeriodStartedAt DateTime?
+  currentPeriodEndsAt    DateTime?
+  cancelledAt            DateTime?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([planKey, status])
+  @@map("shop_billing_subscriptions")
+}
+
+model ShopBillingEvent {
+  id           Int              @id @default(autoincrement())
+  shopId       Int
+  type         BillingEventType
+  message      String?          @db.Text
+  metadataJson Json?
+  createdAt    DateTime         @default(now())
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, type])
+  @@map("shop_billing_events")
 }

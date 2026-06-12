@@ -6,6 +6,8 @@ import {
   Shop,
   WebhookEvent,
 } from '@prisma/client';
+import { BillingService } from '../../billing/billing.service';
+import { ADD_SHOPIFY_TAGS } from '../../graphql/mutation/order.mutation';
 import { ShopifyService } from '../../shopify/shopify.service';
 import { AutomationService } from '../automation/automation.service';
 import {
@@ -37,6 +39,7 @@ export class CodOrderProcessorService {
     private readonly verifications: VerificationService,
     private readonly automation: AutomationService,
     private readonly risks: RiskService,
+    private readonly billing: BillingService,
   ) {}
 
   async processOrdersCreate({
@@ -87,10 +90,22 @@ export class CodOrderProcessorService {
       shippingDistrict,
       shippingAddressJson: shippingAddress,
     });
-    const status = this.getInitialStatus(isCod, risk);
-    const expiresAt = isCod
-      ? this.addMinutes(new Date(), setting.confirmationDeadlineMinutes)
+    const billingEntitlement = isCod
+      ? await this.billing.getEntitlement({
+          shopId: shop.id,
+          excludeShopifyOrderGid: shopifyOrderGid,
+        })
       : null;
+    const billingLimitReached = Boolean(
+      billingEntitlement && !billingEntitlement.canProcessNextOrder,
+    );
+    const status = billingLimitReached
+      ? CodOrderStatus.NEEDS_REVIEW
+      : this.getInitialStatus(isCod, risk);
+    const expiresAt =
+      isCod && !billingLimitReached
+        ? this.addMinutes(new Date(), setting.confirmationDeadlineMinutes)
+        : null;
 
     const codOrder = await this.orders.upsertOrder({
       shopId: shop.id,
@@ -129,8 +144,48 @@ export class CodOrderProcessorService {
         webhookEventId: event.id,
         paymentNames,
         tags: this.getTagsForOrder(setting, isCod, risk),
+        billing: billingEntitlement
+          ? {
+              planKey: billingEntitlement.plan.key,
+              monthlyCodOrderLimit:
+                billingEntitlement.usage.monthlyCodOrderLimit,
+              usedBeforeThisOrder: billingEntitlement.usage.codOrdersUsed,
+              limitReached: billingLimitReached,
+            }
+          : undefined,
       } as Prisma.InputJsonValue,
     });
+
+    if (billingLimitReached && billingEntitlement) {
+      await this.billing.recordLimitReached({
+        shopId: shop.id,
+        planKey: billingEntitlement.plan.key,
+        usageCount: billingEntitlement.usage.codOrdersUsed + 1,
+        monthlyLimit: billingEntitlement.usage.monthlyCodOrderLimit,
+        shopifyOrderGid,
+      });
+
+      await this.orders.createEvent({
+        codOrderId: codOrder.id,
+        type: 'BILLING_LIMIT_REACHED',
+        message:
+          'Monthly COD order quota reached. Verification is paused until the merchant upgrades or the next billing period starts.',
+        metadataJson: {
+          planKey: billingEntitlement.plan.key,
+          monthlyCodOrderLimit: billingEntitlement.usage.monthlyCodOrderLimit,
+          usedIncludingThisOrder: billingEntitlement.usage.codOrdersUsed + 1,
+        } as Prisma.InputJsonValue,
+      });
+
+      await this.syncShopifyTags({
+        shopDomain: shop.domain,
+        shopifyOrderGid,
+        codOrderId: codOrder.id,
+        tags: [setting.riskTag || COD_DEFAULT_TAGS.risky],
+      });
+
+      return codOrder;
+    }
 
     if (isCod && expiresAt) {
       const { session } = await this.verifications.createSessionForOrder({
@@ -181,19 +236,7 @@ export class CodOrderProcessorService {
     try {
       const response = await this.shopify.graphql(
         input.shopDomain,
-        `#graphql
-          mutation AddCodGuardTags($id: ID!, $tags: [String!]!) {
-            tagsAdd(id: $id, tags: $tags) {
-              node {
-                id
-              }
-              userErrors {
-                field
-                message
-              }
-            }
-          }
-        `,
+        ADD_SHOPIFY_TAGS,
         {
           id: input.shopifyOrderGid,
           tags: input.tags,

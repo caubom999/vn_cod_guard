@@ -66,7 +66,7 @@ export class AppController {
   }
 
   private supportEmail() {
-    return process.env.SUPPORT_EMAIL || 'support@vn-cod-guard.app';
+    return process.env.SUPPORT_EMAIL || 'support@vietnamcodguard.com';
   }
 
   private redirectToAuth(req: Request, res: Response, shop: string) {

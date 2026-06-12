@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BillingModule } from '../billing/billing.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ShopModule } from '../shop/shop.module';
 import { ShopifyModule } from '../shopify/shopify.module';
@@ -27,7 +28,7 @@ import { VerificationRepository } from './verification/verification.repository';
 import { VerificationService } from './verification/verification.service';
 
 @Module({
-  imports: [PrismaModule, ShopModule, ShopifyModule],
+  imports: [PrismaModule, ShopModule, ShopifyModule, BillingModule],
   controllers: [
     VerificationController,
     CodSettingsController,

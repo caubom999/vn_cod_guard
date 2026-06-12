@@ -1,11 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Shop } from '@prisma/client';
 import { createHash } from 'crypto';
+import { BillingService } from '../billing/billing.service';
 import { CodOrderProcessorService } from '../cod/orders/cod-order-processor.service';
 import { ShopService } from '../shop/shop.service';
 import { ComplianceService } from './compliance.service';
 import {
   APP_UNINSTALLED_WEBHOOK_TOPIC,
+  APP_SUBSCRIPTIONS_UPDATE_WEBHOOK_TOPIC,
   CUSTOMERS_DATA_REQUEST_WEBHOOK_TOPIC,
   CUSTOMERS_REDACT_WEBHOOK_TOPIC,
   ORDERS_CREATE_WEBHOOK_TOPIC,
@@ -34,6 +36,7 @@ export class WebhooksService {
     private readonly webhooks: WebhooksRepository,
     private readonly codOrderProcessor: CodOrderProcessorService,
     private readonly compliance: ComplianceService,
+    private readonly billing: BillingService,
   ) {}
 
   async receiveOrdersCreate(
@@ -113,6 +116,17 @@ export class WebhooksService {
     return this.receiveShopCleanupWebhook(
       request,
       APP_UNINSTALLED_WEBHOOK_TOPIC,
+    );
+  }
+
+  async receiveAppSubscriptionsUpdate(
+    request: ShopifyWebhookRequest,
+  ): Promise<WebhookReceipt> {
+    return this.receiveShopScopedWebhook(
+      request,
+      APP_SUBSCRIPTIONS_UPDATE_WEBHOOK_TOPIC,
+      ({ shop, payload }) =>
+        this.billing.handleAppSubscriptionUpdate(shop, payload),
     );
   }
 

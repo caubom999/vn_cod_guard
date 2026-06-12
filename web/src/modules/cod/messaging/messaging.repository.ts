@@ -64,7 +64,7 @@ export class MessagingRepository {
         shopId,
         provider: ChannelIntegrationProvider.EMAIL,
         enabled: true,
-        senderName: 'VN-Cod-Guard',
+        senderName: 'Vietnam COD Guard',
         configJson: { mode: 'dev-log' },
       },
     });

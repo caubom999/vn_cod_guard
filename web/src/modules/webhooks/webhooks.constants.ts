@@ -12,3 +12,7 @@ export const SHOP_REDACT_WEBHOOK_TOPIC = 'shop/redact';
 
 export const APP_UNINSTALLED_WEBHOOK_PATH = 'app/uninstalled';
 export const APP_UNINSTALLED_WEBHOOK_TOPIC = 'app/uninstalled';
+
+export const APP_SUBSCRIPTIONS_UPDATE_WEBHOOK_PATH = 'app/subscriptions-update';
+export const APP_SUBSCRIPTIONS_UPDATE_WEBHOOK_TOPIC =
+  'app_subscriptions/update';

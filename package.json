@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
-  "author": "VN Cod Guard",
+  "author": "Vietnam COD Guard",
   "workspaces": [
     "extensions/*",
     "web",

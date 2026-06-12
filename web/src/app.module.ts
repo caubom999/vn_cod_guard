@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import appConfig from './config/app';
 import shopifyConfig from './config/shopify';
 import { AuthModule } from './modules/auth/auth.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { ShopModule } from './modules/shop/shop.module';
 import { ShopifyModule } from './modules/shopify/shopify.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
@@ -47,6 +48,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     }),
     ShopifyModule,
     AuthModule,
+    BillingModule,
     ShopModule,
     WebhooksModule,
   ],
