@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { BlacklistEntryType, Prisma, Shop } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizeVietnamPhone } from '../cod/utils/phone-normalizer';
+import { ShopifySessionRepository } from '../shopify/shopify.repository';
 
 type PrivacyWebhookPayload = Record<string, unknown>;
 
@@ -16,7 +17,10 @@ type CustomerIdentifiers = {
 export class ComplianceService {
   private readonly logger = new Logger(ComplianceService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly shopifySessions: ShopifySessionRepository,
+  ) {}
 
   async handleCustomersDataRequest(shop: Shop, payload: PrivacyWebhookPayload) {
     const identifiers = this.extractCustomerIdentifiers(payload);
@@ -127,6 +131,8 @@ export class ComplianceService {
     shopDomain: string,
     reason: 'app_uninstalled' | 'shop_redact',
   ) {
+    const redisSessions =
+      await this.shopifySessions.deleteRedisSessionsByShop(shopDomain);
     const result = await this.prisma.$transaction(async (tx) => {
       const sessions = await tx.shopifySession.deleteMany({
         where: { shop: shopDomain },
@@ -137,6 +143,7 @@ export class ComplianceService {
 
       return {
         deletedSessions: sessions.count,
+        deletedRedisSessions: redisSessions.deletedRedisSessions,
         deletedShops: shops.count,
       };
     });
@@ -149,7 +156,9 @@ export class ComplianceService {
         '; deletedShops=' +
         result.deletedShops +
         '; deletedSessions=' +
-        result.deletedSessions,
+        result.deletedSessions +
+        '; deletedRedisSessions=' +
+        result.deletedRedisSessions,
     );
 
     return result;
