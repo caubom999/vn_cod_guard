@@ -13,13 +13,16 @@ import { CodSettingsController } from './settings/cod-settings.controller';
 import { CodSettingsRepository } from './settings/cod-settings.repository';
 import { CodSettingsService } from './settings/cod-settings.service';
 import { CodOrderRepository } from './orders/cod-order.repository';
+import { RiskController } from './risk/risk.controller';
+import { RiskRepository } from './risk/risk.repository';
+import { RiskService } from './risk/risk.service';
 import { VerificationController } from './verification/verification.controller';
 import { VerificationRepository } from './verification/verification.repository';
 import { VerificationService } from './verification/verification.service';
 
 @Module({
   imports: [PrismaModule, ShopModule, ShopifyModule],
-  controllers: [VerificationController, CodSettingsController],
+  controllers: [VerificationController, CodSettingsController, RiskController],
   providers: [
     AutomationService,
     AutomationRepository,
@@ -27,6 +30,8 @@ import { VerificationService } from './verification/verification.service';
     MessagingService,
     MessageTemplateRenderer,
     EmailProvider,
+    RiskService,
+    RiskRepository,
     CodOrderProcessorService,
     CodOrderRepository,
     CodSettingsService,

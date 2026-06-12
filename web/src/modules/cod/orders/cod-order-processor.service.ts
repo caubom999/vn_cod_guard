@@ -13,6 +13,8 @@ import {
   COD_DEFAULT_TAGS,
   COD_RISK_REVIEW_THRESHOLD,
 } from '../cod.constants';
+import { RiskService } from '../risk/risk.service';
+import { RiskResult } from '../risk/risk.types';
 import { normalizeVietnamPhone } from '../utils/phone-normalizer';
 import { VerificationService } from '../verification/verification.service';
 import { CodOrderRepository } from './cod-order.repository';
@@ -25,11 +27,6 @@ type ProcessOrdersCreateInput = {
   payload: ShopifyOrderPayload;
 };
 
-type RiskResult = {
-  score: number;
-  reasons: string[];
-};
-
 @Injectable()
 export class CodOrderProcessorService {
   private readonly logger = new Logger(CodOrderProcessorService.name);
@@ -39,6 +36,7 @@ export class CodOrderProcessorService {
     private readonly shopify: ShopifyService,
     private readonly verifications: VerificationService,
     private readonly automation: AutomationService,
+    private readonly risks: RiskService,
   ) {}
 
   async processOrdersCreate({
@@ -64,10 +62,30 @@ export class CodOrderProcessorService {
       this.getString(billingAddress, 'phone'),
     );
     const normalizedPhone = normalizeVietnamPhone(customerPhone);
-    const risk = this.calculateRisk({
+    const customerEmail = this.firstString(
+      this.getString(customer, 'email'),
+      this.getString(payload, 'email'),
+    );
+    const shippingProvince = this.getString(shippingAddress, 'province');
+    const shippingCity = this.getString(shippingAddress, 'city');
+    const shippingDistrict = this.firstString(
+      this.getString(shippingAddress, 'district'),
+      this.getString(shippingAddress, 'district_name'),
+      this.getString(shippingAddress, 'county'),
+    );
+    const totalAmount = this.getOrderAmount(payload);
+    const risk = await this.risks.evaluate({
+      shopId: shop.id,
+      shopifyOrderGid,
       isCod,
+      totalAmount,
+      customerEmail,
+      customerPhone,
       normalizedPhone,
-      shippingAddress,
+      shippingProvince,
+      shippingCity,
+      shippingDistrict,
+      shippingAddressJson: shippingAddress,
     });
     const status = this.getInitialStatus(isCod, risk);
     const expiresAt = isCod
@@ -80,24 +98,17 @@ export class CodOrderProcessorService {
       orderName: this.getString(payload, 'name'),
       orderNumber: this.getOrderNumber(payload),
       currency: this.getString(payload, 'currency'),
-      totalAmount: this.getOrderAmount(payload),
+      totalAmount,
       paymentMethod: paymentNames.join(', ') || null,
       financialStatus: this.getString(payload, 'financial_status'),
       fulfillmentStatus: this.getString(payload, 'fulfillment_status'),
       customerName: this.getCustomerName(customer, shippingAddress),
-      customerEmail: this.firstString(
-        this.getString(customer, 'email'),
-        this.getString(payload, 'email'),
-      ),
+      customerEmail,
       customerPhone,
       normalizedPhone,
-      shippingProvince: this.getString(shippingAddress, 'province'),
-      shippingCity: this.getString(shippingAddress, 'city'),
-      shippingDistrict: this.firstString(
-        this.getString(shippingAddress, 'district'),
-        this.getString(shippingAddress, 'district_name'),
-        this.getString(shippingAddress, 'county'),
-      ),
+      shippingProvince,
+      shippingCity,
+      shippingDistrict,
       shippingAddressJson: shippingAddress as Prisma.InputJsonValue,
       lineItemsJson: this.getLineItems(payload) as Prisma.InputJsonValue,
       isCod,
@@ -274,31 +285,6 @@ export class CodOrderProcessorService {
       (name): name is string =>
         typeof name === 'string' && Boolean(name.trim()),
     );
-  }
-
-  private calculateRisk(input: {
-    isCod: boolean;
-    normalizedPhone: string | null;
-    shippingAddress: Record<string, unknown> | null;
-  }): RiskResult {
-    if (!input.isCod) {
-      return { score: 0, reasons: [] };
-    }
-
-    const reasons: string[] = [];
-    let score = 0;
-
-    if (!input.normalizedPhone) {
-      score += 60;
-      reasons.push('missing_or_invalid_phone');
-    }
-
-    if (!input.shippingAddress) {
-      score += 30;
-      reasons.push('missing_shipping_address');
-    }
-
-    return { score: Math.min(score, 100), reasons };
   }
 
   private getInitialStatus(isCod: boolean, risk: RiskResult) {
