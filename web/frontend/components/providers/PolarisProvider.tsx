@@ -1,9 +1,9 @@
 import { AppProvider } from '@shopify/polaris';
-import { useCallback } from 'react';
+import { useCallback, type MouseEvent } from 'react';
 import '@shopify/polaris/build/esm/styles.css';
 import type { LinkLikeComponentProps } from '@shopify/polaris/build/ts/src/utilities/link';
 import polarisTranslations from '@shopify/polaris/locales/en.json';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 function AppBridgeLink({
   url,
@@ -12,11 +12,33 @@ function AppBridgeLink({
   ...rest
 }: LinkLikeComponentProps) {
   const navigate = useNavigate();
-  const handleClick = useCallback(() => {
-    navigate(url);
-  }, [navigate, url]);
+  const { search } = useLocation();
 
   const IS_EXTERNAL_LINK_REGEX = /^(?:[a-z][a-z\d+.-]*:|\/\/)/;
+
+  const internalUrl =
+    search && url.startsWith('/') && !url.includes('?')
+      ? `${url}${search}`
+      : url;
+
+  const handleClick = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.shiftKey
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      navigate(internalUrl);
+    },
+    [navigate, internalUrl],
+  );
 
   if (external || IS_EXTERNAL_LINK_REGEX.test(url)) {
     return (
@@ -27,7 +49,7 @@ function AppBridgeLink({
   }
 
   return (
-    <a {...rest} onClick={handleClick}>
+    <a {...rest} href={internalUrl} onClick={handleClick}>
       {children}
     </a>
   );

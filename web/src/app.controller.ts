@@ -2,6 +2,10 @@ import { Controller, Get, Req, Res } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { Request, Response } from 'express';
 import { join } from 'path';
+import {
+  AUTHENTICATED_APP_ROUTES,
+  PUBLIC_APP_SHELL_ROUTES,
+} from './app.routes';
 import { renderLegalPageHtml } from './legal/legal-page.renderer';
 import { getLegalPage, LegalPageKey } from './legal/legal-pages';
 import { ShopifyService } from './modules/shopify/shopify.service';
@@ -30,7 +34,7 @@ export class AppController {
     return this.renderLegalPage(res, 'dataRetention');
   }
 
-  @Get()
+  @Get(AUTHENTICATED_APP_ROUTES)
   async index(@Req() req: Request, @Res() res: Response) {
     const shop = this.shopifyService.sanitizeShop(req.query.shop as string);
 
@@ -44,6 +48,15 @@ export class AppController {
       return this.redirectToAuth(req, res, shop);
     }
 
+    return this.renderAppShell(res);
+  }
+
+  @Get(PUBLIC_APP_SHELL_ROUTES)
+  exitIframe(@Res() res: Response) {
+    return this.renderAppShell(res);
+  }
+
+  private renderAppShell(res: Response) {
     const entryFile = join(
       __dirname,
       process.env.NODE_ENV === 'production'

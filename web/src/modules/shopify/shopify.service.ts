@@ -48,21 +48,7 @@ export class ShopifyService {
 
   async loadOfflineSession(shop: string) {
     const sessionId = this.shopify.session.getOfflineId(shop);
-    const session = await this.sessions.findById(sessionId);
-
-    if (!session) {
-      return null;
-    }
-
-    return new Session({
-      id: session.id,
-      shop: session.shop,
-      state: session.state,
-      isOnline: session.isOnline,
-      scope: session.scope || undefined,
-      expires: session.expires || undefined,
-      accessToken: session.accessToken,
-    });
+    return this.sessions.findById(sessionId);
   }
 
   async graphql(

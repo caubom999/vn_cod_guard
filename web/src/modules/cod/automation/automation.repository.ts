@@ -23,23 +23,44 @@ export class AutomationRepository {
     return this.prisma.codAutomationJob.create({ data });
   }
 
-  findDueJobs(limit = 10) {
+  findDueJobs(limit = 10, staleRunningBefore?: Date) {
     return this.prisma.codAutomationJob.findMany({
       where: {
-        status: AutomationJobStatus.SCHEDULED,
-        runAt: { lte: new Date() },
+        OR: [
+          {
+            status: AutomationJobStatus.SCHEDULED,
+            runAt: { lte: new Date() },
+          },
+          ...(staleRunningBefore
+            ? [
+                {
+                  status: AutomationJobStatus.RUNNING,
+                  updatedAt: { lt: staleRunningBefore },
+                },
+              ]
+            : []),
+        ],
       },
       orderBy: [{ runAt: 'asc' }, { id: 'asc' }],
       take: limit,
     });
   }
 
-  async claimJob(id: number) {
+  async claimJob(id: number, staleRunningBefore: Date) {
+    const now = new Date();
     const result = await this.prisma.codAutomationJob.updateMany({
       where: {
         id,
-        status: AutomationJobStatus.SCHEDULED,
-        runAt: { lte: new Date() },
+        OR: [
+          {
+            status: AutomationJobStatus.SCHEDULED,
+            runAt: { lte: now },
+          },
+          {
+            status: AutomationJobStatus.RUNNING,
+            updatedAt: { lt: staleRunningBefore },
+          },
+        ],
       },
       data: {
         status: AutomationJobStatus.RUNNING,
@@ -48,7 +69,13 @@ export class AutomationRepository {
       },
     });
 
-    return result.count === 1;
+    if (result.count !== 1) {
+      return null;
+    }
+
+    return this.prisma.codAutomationJob.findUnique({
+      where: { id },
+    });
   }
 
   findOrderForJob(codOrderId: number) {
@@ -65,33 +92,51 @@ export class AutomationRepository {
     });
   }
 
-  markJobDone(id: number) {
-    return this.prisma.codAutomationJob.update({
-      where: { id },
+  markJobDone(id: number, attempts: number) {
+    return this.prisma.codAutomationJob.updateMany({
+      where: {
+        id,
+        attempts,
+        status: AutomationJobStatus.RUNNING,
+      },
       data: { status: AutomationJobStatus.DONE, lastError: null },
     });
   }
 
-  markJobCancelled(id: number, reason: string) {
-    return this.prisma.codAutomationJob.update({
-      where: { id },
+  markJobCancelled(id: number, reason: string, attempts: number) {
+    return this.prisma.codAutomationJob.updateMany({
+      where: {
+        id,
+        attempts,
+        status: AutomationJobStatus.RUNNING,
+      },
       data: { status: AutomationJobStatus.CANCELLED, lastError: reason },
     });
   }
 
-  markJobFailed(id: number, attempts: number, error: string) {
-    const shouldRetry = attempts < 3;
+  markJobFailed(input: {
+    id: number;
+    attempts: number;
+    error: string;
+    maxAttempts: number;
+    retryDelayMs: number;
+  }) {
+    const shouldRetry = input.attempts < input.maxAttempts;
 
-    return this.prisma.codAutomationJob.update({
-      where: { id },
+    return this.prisma.codAutomationJob.updateMany({
+      where: {
+        id: input.id,
+        attempts: input.attempts,
+        status: AutomationJobStatus.RUNNING,
+      },
       data: {
         status: shouldRetry
           ? AutomationJobStatus.SCHEDULED
           : AutomationJobStatus.FAILED,
         runAt: shouldRetry
-          ? new Date(Date.now() + attempts * 60 * 1000)
+          ? new Date(Date.now() + input.retryDelayMs)
           : undefined,
-        lastError: error,
+        lastError: input.error,
       },
     });
   }

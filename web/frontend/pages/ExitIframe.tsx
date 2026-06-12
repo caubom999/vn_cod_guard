@@ -8,22 +8,52 @@ export default function ExitIframe() {
   const { search } = useLocation();
   const [showWarning, setShowWarning] = useState(false);
 
-  app.loading(true);
+  useEffect(() => {
+    app.loading(true);
+
+    return () => {
+      app.loading(false);
+    };
+  }, [app]);
 
   useEffect(() => {
-    if (!!app && !!search) {
-      const params = new URLSearchParams(search);
-      const redirectUri = params.get('redirectUri') ?? '';
-      const url = new URL(decodeURIComponent(redirectUri));
+    if (!app) {
+      return;
+    }
 
-      if (
-        [location.hostname, 'admin.shopify.com'].includes(url.hostname) ||
-        url.hostname.endsWith('.myshopify.com')
-      ) {
-        window.open(url, '_top');
-      } else {
-        setShowWarning(true);
-      }
+    if (!search) {
+      app.loading(false);
+      setShowWarning(true);
+      return;
+    }
+
+    const params = new URLSearchParams(search);
+    const redirectUri = params.get('redirectUri');
+
+    if (!redirectUri) {
+      app.loading(false);
+      setShowWarning(true);
+      return;
+    }
+
+    let url: URL;
+
+    try {
+      url = new URL(decodeURIComponent(redirectUri));
+    } catch {
+      app.loading(false);
+      setShowWarning(true);
+      return;
+    }
+
+    if (
+      [location.hostname, 'admin.shopify.com'].includes(url.hostname) ||
+      url.hostname.endsWith('.myshopify.com')
+    ) {
+      window.open(url, '_top');
+    } else {
+      app.loading(false);
+      setShowWarning(true);
     }
   }, [app, search, setShowWarning]);
 

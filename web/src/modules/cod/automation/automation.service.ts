@@ -117,55 +117,79 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     this.isRunning = true;
 
     try {
-      const jobs = await this.automation.findDueJobs(10);
+      const staleRunningBefore = this.getStaleRunningBefore();
+      const jobs = await this.automation.findDueJobs(
+        this.getBatchSize(),
+        staleRunningBefore,
+      );
 
       for (const job of jobs) {
-        await this.processJob(job);
+        await this.processJob(job, staleRunningBefore);
       }
+    } catch (error) {
+      this.logger.error(
+        'COD automation worker failed: ' + this.getErrorMessage(error),
+      );
     } finally {
       this.isRunning = false;
     }
   }
 
-  private async processJob(job: CodAutomationJob) {
-    const claimed = await this.automation.claimJob(job.id);
+  private async processJob(job: CodAutomationJob, staleRunningBefore: Date) {
+    const claimed = await this.automation.claimJob(job.id, staleRunningBefore);
 
     if (!claimed) {
       return;
     }
 
-    const attempts = job.attempts + 1;
+    const attempts = claimed.attempts;
 
     try {
-      if (job.type === AutomationJobType.SEND_REMINDER) {
-        await this.handleSendReminder(job);
-      } else if (job.type === AutomationJobType.EXPIRE_ORDER) {
-        await this.handleExpireOrder(job);
-      } else if (job.type === AutomationJobType.AUTO_CANCEL_ORDER) {
-        await this.handleAutoCancelOrder(job);
+      if (claimed.type === AutomationJobType.SEND_REMINDER) {
+        await this.handleSendReminder(claimed, attempts);
+      } else if (claimed.type === AutomationJobType.EXPIRE_ORDER) {
+        await this.handleExpireOrder(claimed, attempts);
+      } else if (claimed.type === AutomationJobType.AUTO_CANCEL_ORDER) {
+        await this.handleAutoCancelOrder(claimed, attempts);
       }
 
-      await this.automation.markJobDone(job.id);
+      await this.automation.markJobDone(claimed.id, attempts);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = this.getErrorMessage(error);
 
-      this.logger.warn('COD automation job ' + job.id + ' failed: ' + message);
-      await this.automation.markJobFailed(job.id, attempts, message);
+      this.logger.warn(
+        'COD automation job ' + claimed.id + ' failed: ' + message,
+      );
+      await this.automation.markJobFailed({
+        id: claimed.id,
+        attempts,
+        error: message,
+        maxAttempts: this.getMaxAttempts(),
+        retryDelayMs: this.getRetryDelayMs(attempts),
+      });
     }
   }
 
-  private async handleSendReminder(job: CodAutomationJob) {
+  private async handleSendReminder(job: CodAutomationJob, attempts: number) {
     const order = await this.automation.findOrderForJob(job.codOrderId);
 
     if (!order) {
-      await this.automation.markJobCancelled(job.id, 'Order not found');
+      await this.automation.markJobCancelled(
+        job.id,
+        'Order not found',
+        attempts,
+      );
       return;
     }
 
     const setting = order.shop.codSetting;
 
     if (!setting?.enabled) {
-      await this.automation.markJobCancelled(job.id, 'COD Guard disabled');
+      await this.automation.markJobCancelled(
+        job.id,
+        'COD Guard disabled',
+        attempts,
+      );
       return;
     }
 
@@ -173,6 +197,7 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
       await this.automation.markJobCancelled(
         job.id,
         'Order is no longer pending',
+        attempts,
       );
       return;
     }
@@ -181,12 +206,17 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
       await this.automation.markJobCancelled(
         job.id,
         'Order is already expired',
+        attempts,
       );
       return;
     }
 
     if (order.reminderCount >= setting.maxReminders) {
-      await this.automation.markJobCancelled(job.id, 'Max reminders reached');
+      await this.automation.markJobCancelled(
+        job.id,
+        'Max reminders reached',
+        attempts,
+      );
       return;
     }
 
@@ -220,11 +250,15 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async handleExpireOrder(job: CodAutomationJob) {
+  private async handleExpireOrder(job: CodAutomationJob, attempts: number) {
     const order = await this.automation.findOrderForJob(job.codOrderId);
 
     if (!order) {
-      await this.automation.markJobCancelled(job.id, 'Order not found');
+      await this.automation.markJobCancelled(
+        job.id,
+        'Order not found',
+        attempts,
+      );
       return;
     }
 
@@ -232,6 +266,7 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
       await this.automation.markJobCancelled(
         job.id,
         'Order is no longer pending',
+        attempts,
       );
       return;
     }
@@ -260,18 +295,26 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     await this.syncShopifyExpiredTags(order);
   }
 
-  private async handleAutoCancelOrder(job: CodAutomationJob) {
+  private async handleAutoCancelOrder(job: CodAutomationJob, attempts: number) {
     const order = await this.automation.findOrderForJob(job.codOrderId);
 
     if (!order) {
-      await this.automation.markJobCancelled(job.id, 'Order not found');
+      await this.automation.markJobCancelled(
+        job.id,
+        'Order not found',
+        attempts,
+      );
       return;
     }
 
     const setting = order.shop.codSetting;
 
     if (!setting?.autoCancelUnconfirmed) {
-      await this.automation.markJobCancelled(job.id, 'Auto cancel disabled');
+      await this.automation.markJobCancelled(
+        job.id,
+        'Auto cancel disabled',
+        attempts,
+      );
       return;
     }
 
@@ -282,12 +325,13 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
       await this.automation.markJobCancelled(
         job.id,
         'Order is no longer cancellable',
+        attempts,
       );
       return;
     }
 
     if (ACTIVE_ORDER_STATUSES.includes(order.status)) {
-      await this.handleExpireOrder(job);
+      await this.handleExpireOrder(job, attempts);
     }
 
     await this.cancelShopifyOrder(order.shop.domain, order.shopifyOrderGid);
@@ -381,7 +425,53 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
   }
 
   private getPollIntervalMs() {
-    return Number(process.env.COD_AUTOMATION_WORKER_INTERVAL_MS || 30000);
+    return this.getPositiveIntegerEnv(
+      'COD_AUTOMATION_WORKER_INTERVAL_MS',
+      30000,
+    );
+  }
+
+  private getBatchSize() {
+    return this.getPositiveIntegerEnv('COD_AUTOMATION_WORKER_BATCH_SIZE', 10);
+  }
+
+  private getMaxAttempts() {
+    return this.getPositiveIntegerEnv('COD_AUTOMATION_WORKER_MAX_ATTEMPTS', 3);
+  }
+
+  private getStaleRunningBefore() {
+    return new Date(Date.now() - this.getStaleRunningMs());
+  }
+
+  private getStaleRunningMs() {
+    return this.getPositiveIntegerEnv(
+      'COD_AUTOMATION_WORKER_STALE_RUNNING_MS',
+      10 * 60 * 1000,
+    );
+  }
+
+  private getRetryDelayMs(attempts: number) {
+    const baseDelayMs = this.getPositiveIntegerEnv(
+      'COD_AUTOMATION_WORKER_RETRY_BASE_MS',
+      60 * 1000,
+    );
+    const maxDelayMs = this.getPositiveIntegerEnv(
+      'COD_AUTOMATION_WORKER_RETRY_MAX_MS',
+      15 * 60 * 1000,
+    );
+    const multiplier = Math.pow(2, Math.max(attempts - 1, 0));
+
+    return Math.min(baseDelayMs * multiplier, maxDelayMs);
+  }
+
+  private getPositiveIntegerEnv(name: string, fallback: number) {
+    const value = Number(process.env[name]);
+
+    return Number.isInteger(value) && value > 0 ? value : fallback;
+  }
+
+  private getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : String(error);
   }
 
   private addMinutes(date: Date, minutes: number) {
