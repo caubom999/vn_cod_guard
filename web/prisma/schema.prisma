@@ -223,6 +223,8 @@ model CodMessageDelivery {
   provider              String?               @db.VarChar(64)
   providerMessageId     String?               @db.VarChar(255)
   recipient             String                @db.VarChar(255)
+  subject               String?               @db.VarChar(255)
+  body                  String?               @db.Text
   status                MessageDeliveryStatus @default(QUEUED)
   error                 String?               @db.Text
   sentAt                DateTime?

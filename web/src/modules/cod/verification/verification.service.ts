@@ -11,6 +11,7 @@ import {
 import { createHash, randomBytes } from 'crypto';
 import { ShopifyService } from '../../shopify/shopify.service';
 import { COD_DEFAULT_TAGS } from '../cod.constants';
+import { MessagingService } from '../messaging/messaging.service';
 import { VerificationRepository } from './verification.repository';
 
 type SessionWithOrder = VerificationSession & {
@@ -35,6 +36,7 @@ export class VerificationService {
   constructor(
     private readonly verifications: VerificationRepository,
     private readonly shopify: ShopifyService,
+    private readonly messaging: MessagingService,
   ) {}
 
   async createSessionForOrder(input: {
@@ -59,6 +61,24 @@ export class VerificationService {
       type: 'VERIFICATION_SESSION_CREATED',
       message: 'Verification session created with hashed token.',
     });
+
+    try {
+      await this.messaging.sendVerificationMessage({
+        verificationSessionId: session.id,
+        token,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      this.logger.warn(`Could not dispatch verification message: ${message}`);
+
+      await this.verifications.createEvent({
+        codOrderId: input.codOrderId,
+        verificationSessionId: session.id,
+        type: 'VERIFICATION_MESSAGE_DISPATCH_FAILED',
+        message,
+      });
+    }
 
     return { session, token };
   }
