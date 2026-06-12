@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { Shop } from '@prisma/client';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Prisma, Shop } from '@prisma/client';
 import { createHash } from 'crypto';
 import { BillingService } from '../billing/billing.service';
 import { CodOrderProcessorService } from '../cod/orders/cod-order-processor.service';
@@ -31,6 +31,8 @@ type ShopScopedHandler = (input: {
 
 @Injectable()
 export class WebhooksService {
+  private readonly logger = new Logger(WebhooksService.name);
+
   constructor(
     private readonly shops: ShopService,
     private readonly webhooks: WebhooksRepository,
@@ -159,14 +161,15 @@ export class WebhooksService {
       shopifyWebhookId: webhookId,
       shopifyOrderGid: getShopifyOrderGid?.(payload),
       payloadHash: this.hashPayload(request.rawBody),
+      payloadJson: payload as Prisma.InputJsonValue,
     });
 
-    try {
-      await handler({ shop, payload, eventId: event.id });
-      await this.webhooks.markProcessed(event.id);
-    } catch (error) {
-      await this.webhooks.markFailed(event.id, this.getErrorMessage(error));
-    }
+    this.enqueueShopScopedWebhook({
+      shop,
+      payload,
+      eventId: event.id,
+      handler,
+    });
 
     return { status: 'accepted', eventId: event.id };
   }
@@ -216,6 +219,53 @@ export class WebhooksService {
     }
 
     return { status: 'accepted', eventId: event.id };
+  }
+
+  private enqueueShopScopedWebhook(input: {
+    shop: Shop;
+    payload: ShopifyWebhookPayload;
+    eventId: number;
+    handler: ShopScopedHandler;
+  }) {
+    setImmediate(() => {
+      void this.processShopScopedWebhook(input);
+    });
+  }
+
+  private async processShopScopedWebhook(input: {
+    shop: Shop;
+    payload: ShopifyWebhookPayload;
+    eventId: number;
+    handler: ShopScopedHandler;
+  }) {
+    try {
+      await input.handler({
+        shop: input.shop,
+        payload: input.payload,
+        eventId: input.eventId,
+      });
+      await this.webhooks.markProcessed(input.eventId);
+    } catch (error) {
+      const message = this.getErrorMessage(error);
+
+      this.logger.warn(
+        'Webhook event ' +
+          input.eventId +
+          ' failed in background processing: ' +
+          message,
+      );
+
+      try {
+        await this.webhooks.markFailed(input.eventId, message);
+      } catch (markFailedError) {
+        this.logger.error(
+          'Could not mark webhook event ' +
+            input.eventId +
+            ' as failed: ' +
+            this.getErrorMessage(markFailedError),
+        );
+      }
+    }
   }
 
   private async findDuplicate(webhookId?: string) {
