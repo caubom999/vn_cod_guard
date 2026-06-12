@@ -14,6 +14,12 @@ export class WebhooksRepository {
     });
   }
 
+  findById(id: number): Promise<WebhookEvent | null> {
+    return this.prisma.webhookEvent.findUnique({
+      where: { id },
+    });
+  }
+
   create(data: Prisma.WebhookEventUncheckedCreateInput): Promise<WebhookEvent> {
     return this.prisma.webhookEvent.create({ data });
   }
