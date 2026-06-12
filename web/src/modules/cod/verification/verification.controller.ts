@@ -11,18 +11,24 @@ import {
 import { Request, Response } from 'express';
 import { VerificationService, VerificationView } from './verification.service';
 
-@Controller('verify')
+@Controller()
 export class VerificationController {
   constructor(private readonly verifications: VerificationService) {}
 
-  @Get(':token')
-  async show(@Param('token') token: string, @Res() response: Response) {
+  @Get(['verify/:token', 'api/verify/:token'])
+  async show(
+    @Param('token') token: string,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
     const view = await this.verifications.getViewByToken(token);
 
-    return response.type('html').send(this.renderPage(token, view));
+    return response
+      .type('html')
+      .send(this.renderPage(token, view, this.getBasePath(request)));
   }
 
-  @Post(':token/confirm')
+  @Post(['verify/:token/confirm', 'api/verify/:token/confirm'])
   @HttpCode(HttpStatus.OK)
   async confirm(
     @Param('token') token: string,
@@ -34,10 +40,12 @@ export class VerificationController {
       this.getMetadata(request),
     );
 
-    return response.type('html').send(this.renderPage(token, view));
+    return response
+      .type('html')
+      .send(this.renderPage(token, view, this.getBasePath(request)));
   }
 
-  @Post(':token/cancel')
+  @Post(['verify/:token/cancel', 'api/verify/:token/cancel'])
   @HttpCode(HttpStatus.OK)
   async cancel(
     @Param('token') token: string,
@@ -49,7 +57,13 @@ export class VerificationController {
       this.getMetadata(request),
     );
 
-    return response.type('html').send(this.renderPage(token, view));
+    return response
+      .type('html')
+      .send(this.renderPage(token, view, this.getBasePath(request)));
+  }
+
+  private getBasePath(request: Request) {
+    return request.path.startsWith('/api/verify') ? '/api/verify' : '/verify';
   }
 
   private getMetadata(request: Request) {
@@ -59,7 +73,7 @@ export class VerificationController {
     };
   }
 
-  private renderPage(token: string, view: VerificationView) {
+  private renderPage(token: string, view: VerificationView, basePath: string) {
     const order = view.order;
     const shopName = view.shop.name || view.shop.domain;
     const amount = order.totalAmount
@@ -106,8 +120,8 @@ export class VerificationController {
     ${
       canAct && !view.isExpired
         ? `<div class="actions">
-      <form method="post" action="/verify/${this.escape(token)}/confirm"><button class="confirm" type="submit">Xác nhận</button></form>
-      <form method="post" action="/verify/${this.escape(token)}/cancel"><button class="cancel" type="submit">Hủy đơn</button></form>
+      <form method="post" action="${this.escape(basePath)}/${this.escape(token)}/confirm"><button class="confirm" type="submit">Xác nhận</button></form>
+      <form method="post" action="${this.escape(basePath)}/${this.escape(token)}/cancel"><button class="cancel" type="submit">Hủy đơn</button></form>
     </div>`
         : '<p class="muted">Đơn này đã được xử lý.</p>'
     }

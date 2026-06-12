@@ -24,7 +24,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
           ? '../frontend/dist'
           : '../frontend',
       ),
-      exclude: ['/api*'],
+      exclude: ['/api', '/api/(.*)', '/verify', '/verify/(.*)'],
       serveStaticOptions: {
         etag: false,
         maxAge: process.env.NODE_ENV === 'production' ? '30d' : 0,
