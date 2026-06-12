@@ -4,6 +4,12 @@ import { ShopModule } from '../shop/shop.module';
 import { ShopifyModule } from '../shopify/shopify.module';
 import { AutomationRepository } from './automation/automation.repository';
 import { AutomationService } from './automation/automation.service';
+import { CodDashboardController } from './dashboard/cod-dashboard.controller';
+import { CodDashboardRepository } from './dashboard/cod-dashboard.repository';
+import { CodDashboardService } from './dashboard/cod-dashboard.service';
+import { MessageTemplateController } from './templates/message-template.controller';
+import { MessageTemplateRepository } from './templates/message-template.repository';
+import { MessageTemplateService } from './templates/message-template.service';
 import { MessagingRepository } from './messaging/messaging.repository';
 import { MessagingService } from './messaging/messaging.service';
 import { MessageTemplateRenderer } from './messaging/message-template.renderer';
@@ -22,8 +28,18 @@ import { VerificationService } from './verification/verification.service';
 
 @Module({
   imports: [PrismaModule, ShopModule, ShopifyModule],
-  controllers: [VerificationController, CodSettingsController, RiskController],
+  controllers: [
+    VerificationController,
+    CodSettingsController,
+    RiskController,
+    CodDashboardController,
+    MessageTemplateController,
+  ],
   providers: [
+    CodDashboardService,
+    CodDashboardRepository,
+    MessageTemplateService,
+    MessageTemplateRepository,
     AutomationService,
     AutomationRepository,
     MessagingRepository,
