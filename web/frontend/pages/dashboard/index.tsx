@@ -76,6 +76,8 @@ export default function Dashboard() {
     return JSON.stringify(form) !== JSON.stringify(toForm(settings));
   }, [form, settings]);
 
+  const validation = useMemo(() => validateSettingsForm(form), [form]);
+
   const isLoading = isShopLoading || isSettingsLoading;
   const error = shopError || settingsError || updateSettings.error;
 
@@ -105,6 +107,10 @@ export default function Dashboard() {
   };
 
   const handleSave = () => {
+    if (!validation.isValid) {
+      return;
+    }
+
     updateSettings.mutate(form);
   };
 
@@ -115,7 +121,7 @@ export default function Dashboard() {
         content: 'Save settings',
         onAction: handleSave,
         loading: updateSettings.isPending,
-        disabled: !isDirty || updateSettings.isPending,
+        disabled: !isDirty || !validation.isValid || updateSettings.isPending,
       }}
     >
       <Layout>
@@ -124,6 +130,12 @@ export default function Dashboard() {
             {error ? (
               <Banner tone="critical">
                 <Text as="p">{(error as Error).message}</Text>
+              </Banner>
+            ) : null}
+
+            {!validation.isValid ? (
+              <Banner tone="warning">
+                <Text as="p">{validation.summary}</Text>
               </Banner>
             ) : null}
 
@@ -204,24 +216,26 @@ export default function Dashboard() {
                       <TextField
                         label="Confirmation deadline (minutes)"
                         type="number"
-                        min={15}
+                        min={1}
                         max={10080}
                         value={String(form.confirmationDeadlineMinutes)}
                         onChange={(value) =>
                           setNumberField('confirmationDeadlineMinutes', value)
                         }
                         autoComplete="off"
+                        error={validation.errors.confirmationDeadlineMinutes}
                       />
                       <TextField
                         label="Reminder delay (minutes)"
                         type="number"
-                        min={5}
+                        min={1}
                         max={10080}
                         value={String(form.reminderDelayMinutes)}
                         onChange={(value) =>
                           setNumberField('reminderDelayMinutes', value)
                         }
                         autoComplete="off"
+                        error={validation.errors.reminderDelayMinutes}
                       />
                       <TextField
                         label="Max reminders"
@@ -233,6 +247,7 @@ export default function Dashboard() {
                           setNumberField('maxReminders', value)
                         }
                         autoComplete="off"
+                        error={validation.errors.maxReminders}
                       />
                     </FormLayout.Group>
 
@@ -250,12 +265,14 @@ export default function Dashboard() {
                         value={form.pendingTag}
                         onChange={(value) => setField('pendingTag', value)}
                         autoComplete="off"
+                        error={validation.errors.pendingTag}
                       />
                       <TextField
                         label="Risk tag"
                         value={form.riskTag}
                         onChange={(value) => setField('riskTag', value)}
                         autoComplete="off"
+                        error={validation.errors.riskTag}
                       />
                     </FormLayout.Group>
 
@@ -265,18 +282,21 @@ export default function Dashboard() {
                         value={form.confirmedTag}
                         onChange={(value) => setField('confirmedTag', value)}
                         autoComplete="off"
+                        error={validation.errors.confirmedTag}
                       />
                       <TextField
                         label="Cancelled tag"
                         value={form.cancelledTag}
                         onChange={(value) => setField('cancelledTag', value)}
                         autoComplete="off"
+                        error={validation.errors.cancelledTag}
                       />
                       <TextField
                         label="No response tag"
                         value={form.expiredTag}
                         onChange={(value) => setField('expiredTag', value)}
                         autoComplete="off"
+                        error={validation.errors.expiredTag}
                       />
                     </FormLayout.Group>
 
@@ -294,7 +314,7 @@ export default function Dashboard() {
                         variant="primary"
                         onClick={handleSave}
                         loading={updateSettings.isPending}
-                        disabled={!isDirty || updateSettings.isPending}
+                        disabled={!isDirty || !validation.isValid || updateSettings.isPending}
                       >
                         Save settings
                       </Button>
@@ -328,4 +348,91 @@ function toForm(settings: CodSettings): UpdateCodSettings {
     riskTag: settings.riskTag,
     codPaymentNames: settings.codPaymentNames,
   };
+}
+
+
+type SettingsValidation = {
+  isValid: boolean;
+  summary?: string;
+  errors: Partial<Record<keyof UpdateCodSettings, string>>;
+};
+
+function validateSettingsForm(form: UpdateCodSettings): SettingsValidation {
+  const errors: SettingsValidation['errors'] = {};
+
+  validateIntegerRange(
+    form.confirmationDeadlineMinutes,
+    1,
+    10080,
+    'Confirmation deadline must be between 1 and 10080 minutes.',
+    (message) => {
+      errors.confirmationDeadlineMinutes = message;
+    },
+  );
+  validateIntegerRange(
+    form.reminderDelayMinutes,
+    1,
+    10080,
+    'Reminder delay must be between 1 and 10080 minutes.',
+    (message) => {
+      errors.reminderDelayMinutes = message;
+    },
+  );
+  validateIntegerRange(
+    form.maxReminders,
+    0,
+    10,
+    'Max reminders must be between 0 and 10.',
+    (message) => {
+      errors.maxReminders = message;
+    },
+  );
+
+  if (
+    !errors.confirmationDeadlineMinutes &&
+    !errors.reminderDelayMinutes &&
+    form.maxReminders > 0 &&
+    form.reminderDelayMinutes >= form.confirmationDeadlineMinutes
+  ) {
+    errors.reminderDelayMinutes =
+      'Reminder delay must be lower than the confirmation deadline when reminders are enabled.';
+  }
+
+  for (const key of [
+    'pendingTag',
+    'confirmedTag',
+    'cancelledTag',
+    'expiredTag',
+    'riskTag',
+  ] as const) {
+    const value = form[key].trim();
+
+    if (!value) {
+      errors[key] = 'Tag is required.';
+    } else if (value.length > 64) {
+      errors[key] = 'Tag must be 64 characters or fewer.';
+    }
+  }
+
+  const isValid = Object.keys(errors).length === 0;
+
+  return {
+    isValid,
+    summary: isValid
+      ? undefined
+      : 'Please fix the highlighted settings before saving.',
+    errors,
+  };
+}
+
+function validateIntegerRange(
+  value: number,
+  min: number,
+  max: number,
+  message: string,
+  setError: (message: string) => void,
+) {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    setError(message);
+  }
 }
