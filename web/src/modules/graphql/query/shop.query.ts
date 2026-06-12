@@ -1,4 +1,4 @@
-export const SHOP_INFO = `
+export const SHOP_INFO = `#graphql
   query ShopInfo {
     shop {
       name

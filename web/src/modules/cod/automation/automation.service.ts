@@ -12,6 +12,11 @@ import {
   Prisma,
   VerificationSessionStatus,
 } from '@prisma/client';
+import {
+  ADD_SHOPIFY_TAGS,
+  CANCEL_SHOPIFY_ORDER,
+  REMOVE_SHOPIFY_TAGS,
+} from '../../graphql/mutation/order.mutation';
 import { ShopifyService } from '../../shopify/shopify.service';
 import { COD_DEFAULT_TAGS } from '../cod.constants';
 import { VerificationService } from '../verification/verification.service';
@@ -344,20 +349,7 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
   ) {
     const response = (await this.shopify.graphql(
       shopDomain,
-      [
-        'mutation CancelCodOrder($orderId: ID!) {',
-        '  orderCancel(',
-        '    orderId: $orderId,',
-        '    reason: CUSTOMER,',
-        '    restock: true,',
-        '    notifyCustomer: false,',
-        '    refund: false',
-        '  ) {',
-        '    job { id }',
-        '    userErrors { field message }',
-        '  }',
-        '}',
-      ].join('\n'),
+      CANCEL_SHOPIFY_ORDER,
       { orderId: shopifyOrderGid },
     )) as {
       data?: { orderCancel?: { userErrors?: Array<{ message: string }> } };
@@ -371,17 +363,10 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async addTags(shopDomain: string, orderGid: string, tags: string[]) {
-    await this.shopify.graphql(
-      shopDomain,
-      [
-        'mutation AddCodAutomationTags($id: ID!, $tags: [String!]!) {',
-        '  tagsAdd(id: $id, tags: $tags) {',
-        '    userErrors { field message }',
-        '  }',
-        '}',
-      ].join('\n'),
-      { id: orderGid, tags },
-    );
+    await this.shopify.graphql(shopDomain, ADD_SHOPIFY_TAGS, {
+      id: orderGid,
+      tags,
+    });
   }
 
   private async removeTags(
@@ -389,17 +374,10 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     orderGid: string,
     tags: string[],
   ) {
-    await this.shopify.graphql(
-      shopDomain,
-      [
-        'mutation RemoveCodAutomationTags($id: ID!, $tags: [String!]!) {',
-        '  tagsRemove(id: $id, tags: $tags) {',
-        '    userErrors { field message }',
-        '  }',
-        '}',
-      ].join('\n'),
-      { id: orderGid, tags },
-    );
+    await this.shopify.graphql(shopDomain, REMOVE_SHOPIFY_TAGS, {
+      id: orderGid,
+      tags,
+    });
   }
 
   private getPollIntervalMs() {

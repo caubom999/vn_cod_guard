@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   APP_UNINSTALLED_WEBHOOK_PATH,
+  APP_SUBSCRIPTIONS_UPDATE_WEBHOOK_PATH,
   CUSTOMERS_DATA_REQUEST_WEBHOOK_PATH,
   CUSTOMERS_REDACT_WEBHOOK_PATH,
   ORDERS_CREATE_WEBHOOK_PATH,
@@ -61,5 +62,12 @@ export class WebhooksController {
   @HttpCode(HttpStatus.OK)
   appUninstalled(@Req() request: ShopifyWebhookRequest) {
     return this.webhooks.receiveAppUninstalled(request);
+  }
+
+  @Post(APP_SUBSCRIPTIONS_UPDATE_WEBHOOK_PATH)
+  @UseGuards(ShopifyWebhookGuard)
+  @HttpCode(HttpStatus.OK)
+  appSubscriptionsUpdate(@Req() request: ShopifyWebhookRequest) {
+    return this.webhooks.receiveAppSubscriptionsUpdate(request);
   }
 }

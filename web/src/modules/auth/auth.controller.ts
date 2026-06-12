@@ -1,5 +1,6 @@
 import { Controller, Get, Req, Res } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { BillingService } from '../billing/billing.service';
 import { ShopService } from '../shop/shop.service';
 import { SHOP_INFO } from '../graphql/query/shop.query';
 import { ShopifyService } from '../shopify/shopify.service';
@@ -9,6 +10,7 @@ export class AuthController {
   constructor(
     private readonly shopifyService: ShopifyService,
     private readonly shopService: ShopService,
+    private readonly billingService: BillingService,
   ) {}
 
   @Get()
@@ -40,13 +42,15 @@ export class AuthController {
     const shopInfo = await this.shopifyService.graphql(session.shop, SHOP_INFO);
     const shop = shopInfo?.data?.shop;
 
-    await this.shopService.upsert({
+    const installedShop = await this.shopService.upsert({
       domain: session.shop,
       name: shop?.name,
       email: shop?.email,
       accessToken: session.accessToken,
       scopes: session.scope,
     });
+
+    await this.billingService.ensureDefaultSubscription(installedShop.id);
 
     const redirectUrl =
       await this.shopifyService.shopify.auth.getEmbeddedAppUrl({

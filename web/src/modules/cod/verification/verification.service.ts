@@ -9,6 +9,12 @@ import {
   VerificationSessionStatus,
 } from '@prisma/client';
 import { createHash, randomBytes } from 'crypto';
+import {
+  ADD_SHOPIFY_TAGS,
+  REMOVE_SHOPIFY_TAGS,
+  UPDATE_SHOPIFY_ORDER_NOTE,
+} from '../../graphql/mutation/order.mutation';
+import { GET_SHOPIFY_ORDER_NOTE } from '../../graphql/query/order.query';
 import { ShopifyService } from '../../shopify/shopify.service';
 import { COD_DEFAULT_TAGS } from '../cod.constants';
 import { MessagingService } from '../messaging/messaging.service';
@@ -237,35 +243,15 @@ export class VerificationService {
     const noteLine = `[VN-Cod-Guard] COD ${decision === 'confirm' ? 'confirmed' : 'cancelled'} by customer at ${new Date().toISOString()}.`;
 
     try {
-      await this.shopify.graphql(
-        shop.domain,
-        `#graphql
-          mutation RemoveCodPendingTags($id: ID!, $tags: [String!]!) {
-            tagsRemove(id: $id, tags: $tags) {
-              userErrors { field message }
-            }
-          }
-        `,
-        {
-          id: order.shopifyOrderGid,
-          tags: [pendingTag, riskTag],
-        },
-      );
+      await this.shopify.graphql(shop.domain, REMOVE_SHOPIFY_TAGS, {
+        id: order.shopifyOrderGid,
+        tags: [pendingTag, riskTag],
+      });
 
-      await this.shopify.graphql(
-        shop.domain,
-        `#graphql
-          mutation AddCodDecisionTag($id: ID!, $tags: [String!]!) {
-            tagsAdd(id: $id, tags: $tags) {
-              userErrors { field message }
-            }
-          }
-        `,
-        {
-          id: order.shopifyOrderGid,
-          tags: [decisionTag],
-        },
-      );
+      await this.shopify.graphql(shop.domain, ADD_SHOPIFY_TAGS, {
+        id: order.shopifyOrderGid,
+        tags: [decisionTag],
+      });
 
       await this.appendShopifyOrderNote(
         shop.domain,
@@ -296,36 +282,19 @@ export class VerificationService {
   ) {
     const response = (await this.shopify.graphql(
       shopDomain,
-      `#graphql
-        query GetOrderNote($id: ID!) {
-          order(id: $id) {
-            id
-            note
-          }
-        }
-      `,
+      GET_SHOPIFY_ORDER_NOTE,
       { id: shopifyOrderGid },
     )) as { data?: { order?: { note?: string | null } } };
 
     const currentNote = response.data?.order?.note?.trim();
     const nextNote = currentNote ? `${currentNote}\n${noteLine}` : noteLine;
 
-    await this.shopify.graphql(
-      shopDomain,
-      `#graphql
-        mutation UpdateOrderNote($input: OrderInput!) {
-          orderUpdate(input: $input) {
-            userErrors { field message }
-          }
-        }
-      `,
-      {
-        input: {
-          id: shopifyOrderGid,
-          note: nextNote,
-        },
+    await this.shopify.graphql(shopDomain, UPDATE_SHOPIFY_ORDER_NOTE, {
+      input: {
+        id: shopifyOrderGid,
+        note: nextNote,
       },
-    );
+    });
   }
 
   private isExpired(session: VerificationSession) {
