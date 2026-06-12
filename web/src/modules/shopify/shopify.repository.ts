@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ShopifySessionRepository implements OnModuleDestroy {
   private readonly logger = new Logger(ShopifySessionRepository.name);
   private readonly redis: RedisSessionStorage | null;
+  private redisReady = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -117,23 +118,29 @@ export class ShopifySessionRepository implements OnModuleDestroy {
         'shopify_sessions',
     });
 
-    void storage.ready.catch((error) => {
-      this.logger.warn(
-        'Redis session storage is not ready: ' + this.getErrorMessage(error),
-      );
-    });
+    void storage.ready
+      .then(() => {
+        this.redisReady = true;
+      })
+      .catch((error) => {
+        this.redisReady = false;
+        this.logger.warn(
+          'Redis session storage is not ready; continuing with Prisma session storage: ' +
+            this.getErrorMessage(error),
+        );
+      });
 
     return storage;
   }
 
   private getSessionStorageMode() {
     return (
-      this.config.get<string>('SHOPIFY_SESSION_STORAGE') || 'redis'
+      this.config.get<string>('SHOPIFY_SESSION_STORAGE') || 'prisma'
     ).toLowerCase();
   }
 
   private async storeInRedis(session: Session) {
-    if (!this.redis) {
+    if (!this.isRedisAvailable()) {
       return;
     }
 
@@ -148,7 +155,7 @@ export class ShopifySessionRepository implements OnModuleDestroy {
   }
 
   private async loadFromRedis(id: string) {
-    if (!this.redis) {
+    if (!this.isRedisAvailable()) {
       return null;
     }
 
@@ -164,7 +171,7 @@ export class ShopifySessionRepository implements OnModuleDestroy {
   }
 
   private async findRedisSessionsByShop(shop: string) {
-    if (!this.redis) {
+    if (!this.isRedisAvailable()) {
       return [];
     }
 
@@ -198,6 +205,10 @@ export class ShopifySessionRepository implements OnModuleDestroy {
       : '';
 
     return `redis://${auth}${host}:${port}/${database}`;
+  }
+
+  private isRedisAvailable() {
+    return Boolean(this.redis && this.redisReady);
   }
 
   private toPersistence(session: Session) {

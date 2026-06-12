@@ -73,7 +73,11 @@ services:
       - '${REDIS_PORT}:${REDIS_PORT}'
     restart: 'always'
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test:
+        [
+          'CMD-SHELL',
+          'redis-cli -a "$${REDIS_PASSWORD}" -p "$${REDIS_PORT}" ping',
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
