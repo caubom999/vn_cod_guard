@@ -2,6 +2,8 @@ import { Controller, Get, Req, Res } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { Request, Response } from 'express';
 import { join } from 'path';
+import { renderLegalPageHtml } from './legal/legal-page.renderer';
+import { getLegalPage, LegalPageKey } from './legal/legal-pages';
 import { ShopifyService } from './modules/shopify/shopify.service';
 
 @Controller()
@@ -11,6 +13,21 @@ export class AppController {
   @Get('/health')
   health() {
     return { ok: true };
+  }
+
+  @Get(['/privacy', '/privacy-policy'])
+  privacy(@Res() res: Response) {
+    return this.renderLegalPage(res, 'privacy');
+  }
+
+  @Get(['/terms', '/terms-of-service'])
+  terms(@Res() res: Response) {
+    return this.renderLegalPage(res, 'terms');
+  }
+
+  @Get('/data-retention')
+  dataRetention(@Res() res: Response) {
+    return this.renderLegalPage(res, 'dataRetention');
   }
 
   @Get()
@@ -40,6 +57,16 @@ export class AppController {
       .replace('%VITE_SHOPIFY_API_KEY%', process.env.SHOPIFY_API_KEY || '');
 
     return res.status(200).type('html').send(html);
+  }
+
+  private renderLegalPage(res: Response, key: LegalPageKey) {
+    const page = getLegalPage(key, { supportEmail: this.supportEmail() });
+
+    return res.status(200).type('html').send(renderLegalPageHtml(page));
+  }
+
+  private supportEmail() {
+    return process.env.SUPPORT_EMAIL || 'support@vn-cod-guard.app';
   }
 
   private redirectToAuth(req: Request, res: Response, shop: string) {

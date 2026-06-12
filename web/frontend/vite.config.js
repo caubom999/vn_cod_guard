@@ -57,6 +57,8 @@ export default defineConfig({
     proxy: {
       '^/(\\?.*)?$': proxyOptions,
       '^/api(/|(\\?.*)?$)': proxyOptions,
+      '^/(privacy|privacy-policy|terms|terms-of-service|data-retention)(/|(\\?.*)?$)':
+        proxyOptions,
     },
   },
 });

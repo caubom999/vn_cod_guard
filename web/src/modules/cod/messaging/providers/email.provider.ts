@@ -77,7 +77,9 @@ export class EmailProvider {
 
     const payload = this.parseJson(responseText) as { id?: string };
 
-    this.logger.log('Verification email sent via Resend to ' + input.to);
+    this.logger.log(
+      'Verification email sent via Resend to ' + this.maskEmail(input.to),
+    );
 
     return {
       provider: 'RESEND',
@@ -138,5 +140,15 @@ export class EmailProvider {
     } catch {
       return {};
     }
+  }
+
+  private maskEmail(email: string) {
+    const [localPart, domain] = email.split('@');
+
+    if (!localPart || !domain) {
+      return '[redacted-email]';
+    }
+
+    return localPart.slice(0, 2) + '***@' + domain;
   }
 }

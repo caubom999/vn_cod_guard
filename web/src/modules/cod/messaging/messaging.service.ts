@@ -65,6 +65,7 @@ export class MessagingService {
       shop.id,
     );
     const verificationUrl = this.buildVerificationUrl(token);
+    const redactedVerificationUrl = this.redactVerificationUrl(verificationUrl);
     const context = {
       shopName: shop.name || shop.domain,
       shopDomain: shop.domain,
@@ -87,7 +88,7 @@ export class MessagingService {
       provider: this.emailProvider.getProviderName(integration.configJson),
       recipient: recipient || 'missing-email',
       subject,
-      body,
+      body: this.redactRawToken(body, verificationUrl, redactedVerificationUrl),
       status: MessageDeliveryStatus.QUEUED,
     });
 
@@ -126,7 +127,7 @@ export class MessagingService {
           deliveryId: updatedDelivery.id,
           recipient: updatedDelivery.recipient,
           provider: updatedDelivery.provider,
-          verificationUrl,
+          verificationUrl: redactedVerificationUrl,
         } as Prisma.InputJsonValue,
       });
 
@@ -166,5 +167,20 @@ export class MessagingService {
     }
 
     return normalizedHost + '/api/verify/' + token;
+  }
+
+  private redactVerificationUrl(verificationUrl: string) {
+    return verificationUrl.replace(
+      /\/api\/verify\/[^\s]+$/,
+      '/api/verify/[redacted-token]',
+    );
+  }
+
+  private redactRawToken(
+    value: string,
+    verificationUrl: string,
+    redactedVerificationUrl: string,
+  ) {
+    return value.split(verificationUrl).join(redactedVerificationUrl);
   }
 }
