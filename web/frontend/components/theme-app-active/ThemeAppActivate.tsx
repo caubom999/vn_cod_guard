@@ -1,4 +1,4 @@
-import BannerMessage from '../banner-message';
+import BannerMessage from '../banner-message/BannerMessage';
 
 export default function ThemeAppActivate() {
   const gotoThemeActiveUrl = () => {
