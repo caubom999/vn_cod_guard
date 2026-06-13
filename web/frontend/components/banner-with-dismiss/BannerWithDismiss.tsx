@@ -1,7 +1,6 @@
 import { Banner, type BannerProps } from '@shopify/polaris';
-import { isFunction } from 'lodash-es';
 import { useCallback, useState } from 'react';
-import { useSessionStorage } from '../../../hook/useSessionStorage';
+import { useSessionStorage } from '../../hook/useSessionStorage';
 
 export enum ESessionStorageKeys {
   SSK_WIDGET_BANNER = 'SSK_WIDGET_BANNER',
@@ -37,7 +36,9 @@ export function BannerWithDismiss({
 
   const handleDismiss = useCallback(() => {
     setItem(sessionKey, `${EBannerStatus.HIDDEN}`);
-    isFunction(onDismiss) && onDismiss();
+    if (typeof onDismiss === 'function') {
+      onDismiss();
+    }
     setIsShow(false);
   }, [onDismiss, sessionKey, setItem]);
 
