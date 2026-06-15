@@ -334,16 +334,17 @@ model CodVerificationEvent {
 }
 
 model CodMessageTemplate {
-  id        Int                 @id @default(autoincrement())
-  shopId    Int
-  type      MessageTemplateType
-  channel   VerificationChannel
-  locale    String              @default("vi") @db.VarChar(16)
-  subject   String?             @db.VarChar(255)
-  body      String              @db.Text
-  enabled   Boolean             @default(true)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  id          Int                 @id @default(autoincrement())
+  shopId      Int
+  type        MessageTemplateType
+  channel     VerificationChannel
+  locale      String              @default("vi") @db.VarChar(16)
+  templateKey String              @default("template-1") @db.VarChar(64)
+  subject     String?             @db.VarChar(255)
+  body        String              @db.Text
+  enabled     Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 

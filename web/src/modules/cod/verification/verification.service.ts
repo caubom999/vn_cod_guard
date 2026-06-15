@@ -109,7 +109,12 @@ export class VerificationService {
     token: string,
     metadata: { ipAddress?: string; userAgent?: string },
   ) {
-    const session = await this.getUsableSession(token);
+    const session = await this.getActionableSession(token);
+
+    if (!session) {
+      return this.getViewByToken(token);
+    }
+
     const now = new Date();
 
     await this.verifications.updateSessionStatus(
@@ -147,7 +152,12 @@ export class VerificationService {
     token: string,
     metadata: { ipAddress?: string; userAgent?: string },
   ) {
-    const session = await this.getUsableSession(token);
+    const session = await this.getActionableSession(token);
+
+    if (!session) {
+      return this.getViewByToken(token);
+    }
+
     const now = new Date();
 
     await this.verifications.updateSessionStatus(
@@ -181,11 +191,11 @@ export class VerificationService {
     return this.getViewByToken(token);
   }
 
-  private async getUsableSession(token: string) {
+  private async getActionableSession(token: string) {
     const session = await this.getSessionByToken(token);
 
     if (session.status !== VerificationSessionStatus.ACTIVE) {
-      return session;
+      return null;
     }
 
     if (this.isExpired(session)) {

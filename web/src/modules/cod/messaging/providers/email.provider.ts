@@ -10,6 +10,7 @@ export type SendEmailInput = {
   to: string;
   subject: string;
   body: string;
+  html?: string;
   fromName?: string | null;
   integrationConfig?: unknown;
 };
@@ -65,6 +66,7 @@ export class EmailProvider {
         to: [input.to],
         subject: input.subject,
         text: input.body,
+        html: input.html,
         reply_to: replyTo || undefined,
       }),
     });
@@ -96,8 +98,12 @@ export class EmailProvider {
         '[Vietnam COD Guard] Email verification queued via dev provider',
         'To: ' + input.to,
         'Subject: ' + input.subject,
-        input.body,
-      ].join('\n'),
+        input.html ? 'HTML:\n' + this.redactVerificationTokens(input.html) : '',
+        'Text:',
+        this.redactVerificationTokens(input.body),
+      ]
+        .filter(Boolean)
+        .join('\n'),
     );
 
     return {
@@ -150,5 +156,12 @@ export class EmailProvider {
     }
 
     return localPart.slice(0, 2) + '***@' + domain;
+  }
+
+  private redactVerificationTokens(value: string) {
+    return value.replace(
+      /\/(?:api\/)?verify\/[^\\s"'<>?]+/g,
+      '/verify/[redacted-token]',
+    );
   }
 }

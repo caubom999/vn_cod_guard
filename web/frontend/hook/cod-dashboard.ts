@@ -96,6 +96,7 @@ export type MessageTemplate = {
   type: string;
   channel: string;
   locale: string;
+  templateKey?: string | null;
   subject?: string | null;
   body: string;
   enabled: boolean;
@@ -176,6 +177,7 @@ export function useUpdateMessageTemplate() {
       subject?: string | null;
       body?: string;
       enabled?: boolean;
+      templateKey?: string;
     }) =>
       api<MessageTemplate>('/api/cod/message-templates/' + input.id, {
         method: 'PUT',
