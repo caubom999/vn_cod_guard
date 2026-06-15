@@ -45,9 +45,41 @@ export class VerificationController {
       .send(this.renderPage(token, view, this.getBasePath(request)));
   }
 
+  @Get(['verify/:token/confirm', 'api/verify/:token/confirm'])
+  async confirmFromEmail(
+    @Param('token') token: string,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const view = await this.verifications.confirm(
+      token,
+      this.getMetadata(request),
+    );
+
+    return response
+      .type('html')
+      .send(this.renderPage(token, view, this.getBasePath(request)));
+  }
+
   @Post(['verify/:token/cancel', 'api/verify/:token/cancel'])
   @HttpCode(HttpStatus.OK)
   async cancel(
+    @Param('token') token: string,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    const view = await this.verifications.cancel(
+      token,
+      this.getMetadata(request),
+    );
+
+    return response
+      .type('html')
+      .send(this.renderPage(token, view, this.getBasePath(request)));
+  }
+
+  @Get(['verify/:token/cancel', 'api/verify/:token/cancel'])
+  async cancelFromEmail(
     @Param('token') token: string,
     @Req() request: Request,
     @Res() response: Response,
@@ -80,8 +112,7 @@ export class VerificationController {
       ? `${order.totalAmount.toString()} ${order.currency || ''}`.trim()
       : 'N/A';
     const items = this.getLineItemSummary(order.lineItemsJson);
-    const canAct =
-      order.status === 'PENDING' || order.status === 'NEEDS_REVIEW';
+    const statusMessage = this.getStatusMessage(view);
 
     return `<!doctype html>
 <html lang="vi">
@@ -97,10 +128,7 @@ export class VerificationController {
     dt { color: #6d7175; }
     dd { margin: 0; font-weight: 600; }
     ul { padding-left: 20px; }
-    .actions { display: flex; gap: 12px; margin-top: 24px; }
-    button { border: 0; border-radius: 6px; padding: 12px 16px; font-weight: 700; cursor: pointer; }
-    .confirm { background: #008060; color: white; }
-    .cancel { background: #d82c0d; color: white; }
+    .result { margin: 20px 0; border: 1px solid #dde0e4; border-radius: 8px; background: #fafafa; padding: 16px; font-weight: 600; }
     .muted { color: #6d7175; }
   </style>
 </head>
@@ -116,18 +144,27 @@ export class VerificationController {
       <dt>Trạng thái</dt><dd>${this.escape(order.status)}</dd>
     </dl>
     ${items.length ? `<h2>Sản phẩm</h2><ul>${items.map((item) => `<li>${this.escape(item)}</li>`).join('')}</ul>` : ''}
-    ${view.isExpired ? '<p class="muted">Link xác nhận đã hết hạn.</p>' : ''}
-    ${
-      canAct && !view.isExpired
-        ? `<div class="actions">
-      <form method="post" action="${this.escape(basePath)}/${this.escape(token)}/confirm"><button class="confirm" type="submit">Xác nhận</button></form>
-      <form method="post" action="${this.escape(basePath)}/${this.escape(token)}/cancel"><button class="cancel" type="submit">Hủy đơn</button></form>
-    </div>`
-        : '<p class="muted">Đơn này đã được xử lý.</p>'
-    }
+    <p class="result">${this.escape(statusMessage)}</p>
+    <p class="muted">Bạn có thể đóng trang này.</p>
   </main>
 </body>
 </html>`;
+  }
+
+  private getStatusMessage(view: VerificationView) {
+    if (view.isExpired) {
+      return 'Link xác nhận đã hết hạn.';
+    }
+
+    if (view.order.status === 'CONFIRMED') {
+      return 'Đơn COD của bạn đã được xác nhận.';
+    }
+
+    if (view.order.status === 'CANCELLED_BY_CUSTOMER') {
+      return 'Đơn COD của bạn đã được hủy theo lựa chọn của bạn.';
+    }
+
+    return 'Lựa chọn trong email sẽ được ghi nhận ngay khi bạn bấm nút xác nhận hoặc hủy.';
   }
 
   private getLineItemSummary(value: unknown) {
