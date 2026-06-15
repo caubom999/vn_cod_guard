@@ -23,12 +23,14 @@ import {
   Template1Preview,
   type TemplatePreviewDraft,
 } from './templates/template-1';
+import { Template2Preview } from './templates/template-2';
 
 const templateRegistry: Record<
   string,
   { label: string; Preview: ComponentType<{ draft: TemplatePreviewDraft }> }
 > = {
   'template-1': { label: 'Template 1', Preview: Template1Preview },
+  'template-2': { label: 'Template 2', Preview: Template2Preview },
 };
 
 const templateOptions = Object.entries(templateRegistry).map(
@@ -42,9 +44,6 @@ function MessageTemplatesScreen() {
   const { data, isLoading, error } = useMessageTemplates();
   const updateTemplate = useUpdateMessageTemplate();
   const [drafts, setDrafts] = useState<Record<number, TemplateDraft>>({});
-  const [selectedTemplates, setSelectedTemplates] = useState<
-    Record<number, string>
-  >({});
 
   useEffect(() => {
     if (!data) {
@@ -59,17 +58,11 @@ function MessageTemplatesScreen() {
             subject: template.subject || '',
             body: template.body,
             enabled: template.enabled,
+            templateKey: template.templateKey || 'template-1',
           },
         ]),
       ),
     );
-
-    setSelectedTemplates((current) => ({
-      ...Object.fromEntries(
-        data.map((template) => [template.id, 'template-1']),
-      ),
-      ...current,
-    }));
   }, [data]);
 
   if (error) {
@@ -101,6 +94,7 @@ function MessageTemplatesScreen() {
               subject: template.subject || '',
               body: template.body,
               enabled: template.enabled,
+              templateKey: template.templateKey || 'template-1',
             };
             const dirty = isTemplateDirty(template, draft);
 
@@ -143,11 +137,11 @@ function MessageTemplatesScreen() {
                       <Select
                         label="Select template"
                         options={templateOptions}
-                        value={selectedTemplates[template.id] || 'template-1'}
+                        value={draft.templateKey}
                         onChange={(value) =>
-                          setSelectedTemplates((current) => ({
+                          setDrafts((current) => ({
                             ...current,
-                            [template.id]: value,
+                            [template.id]: { ...draft, templateKey: value },
                           }))
                         }
                       />
@@ -182,12 +176,11 @@ function MessageTemplatesScreen() {
                         <Text as="h3" variant="headingSm">
                           Email preview
                         </Text>
-                        <Badge>Template 1</Badge>
+                        <Badge>
+                          {templateRegistry[draft.templateKey]?.label}
+                        </Badge>
                       </InlineStack>
-                      <TemplatePreview
-                        draft={draft}
-                        templateId={selectedTemplates[template.id]}
-                      />
+                      <TemplatePreview draft={draft} />
                     </BlockStack>
                   </InlineGrid>
                 </BlockStack>
@@ -202,17 +195,16 @@ function MessageTemplatesScreen() {
 
 type TemplateDraft = Pick<MessageTemplate, 'enabled' | 'body'> & {
   subject: string;
+  templateKey: string;
 };
 
 function TemplatePreview({
   draft,
-  templateId = 'template-1',
 }: {
   draft: TemplateDraft;
-  templateId?: string;
 }) {
   const template =
-    templateRegistry[templateId] || templateRegistry['template-1'];
+    templateRegistry[draft.templateKey] || templateRegistry['template-1'];
   const Preview = template.Preview;
 
   return <Preview draft={draft} />;
@@ -222,7 +214,8 @@ function isTemplateDirty(template: MessageTemplate, draft: TemplateDraft) {
   return (
     (template.subject || '') !== draft.subject ||
     template.body !== draft.body ||
-    template.enabled !== draft.enabled
+    template.enabled !== draft.enabled ||
+    (template.templateKey || 'template-1') !== draft.templateKey
   );
 }
 

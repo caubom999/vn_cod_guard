@@ -9,6 +9,7 @@ import { MessagingRepository } from './messaging.repository';
 import { MessageTemplateRenderer } from './message-template.renderer';
 import { EmailProvider } from './providers/email.provider';
 import { renderTemplate1 } from '../verification/templates/template-1';
+import { renderTemplate2 } from '../verification/templates/template-2';
 
 type SendVerificationMessageInput = {
   verificationSessionId: number;
@@ -83,6 +84,7 @@ export class MessagingService {
     const body = this.renderer.render(template.body, context);
     const html = this.buildVerificationEmailHtml({
       body,
+      templateKey: template.templateKey,
       orderName: context.orderName,
       shopName: context.shopName,
       customerName: context.customerName,
@@ -189,6 +191,7 @@ export class MessagingService {
 
   private buildVerificationEmailHtml(input: {
     body: string;
+    templateKey: string | null;
     orderName: string | number | boolean | null | undefined;
     shopName: string | number | boolean | null | undefined;
     customerName: string | number | boolean | null | undefined;
@@ -215,7 +218,7 @@ export class MessagingService {
     const confirmUrl = this.buildDecisionUrl(input.verificationUrl, 'confirm');
     const cancelUrl = this.buildDecisionUrl(input.verificationUrl, 'cancel');
 
-    return renderTemplate1({
+    return this.renderVerificationTemplate(input.templateKey, {
       mode: 'verification',
       shopName: String(input.shopName || ''),
       orderName: String(input.orderName || 'N/A'),
@@ -237,6 +240,15 @@ export class MessagingService {
       shippingAddress: input.shippingAddress || 'N/A',
       paymentMethod: input.paymentMethod,
     });
+  }
+
+  private renderVerificationTemplate(
+    templateKey: string | null | undefined,
+    input: Parameters<typeof renderTemplate1>[0],
+  ) {
+    return templateKey === 'template-2'
+      ? renderTemplate2(input)
+      : renderTemplate1(input);
   }
 
   private removeVerificationUrlLine(body: string, verificationUrl: string) {

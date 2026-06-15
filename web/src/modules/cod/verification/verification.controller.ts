@@ -9,12 +9,17 @@ import {
   Res,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { MessagingRepository } from '../messaging/messaging.repository';
 import { renderTemplate1 } from './templates/template-1';
+import { renderTemplate2 } from './templates/template-2';
 import { VerificationService, VerificationView } from './verification.service';
 
 @Controller()
 export class VerificationController {
-  constructor(private readonly verifications: VerificationService) {}
+  constructor(
+    private readonly verifications: VerificationService,
+    private readonly messages: MessagingRepository,
+  ) {}
 
   @Get(['verify/:token', 'api/verify/:token'])
   async show(
@@ -26,7 +31,7 @@ export class VerificationController {
 
     return response
       .type('html')
-      .send(this.renderPage(token, view, this.getBasePath(request)));
+      .send(await this.renderPage(token, view, this.getBasePath(request)));
   }
 
   @Post(['verify/:token/confirm', 'api/verify/:token/confirm'])
@@ -43,7 +48,7 @@ export class VerificationController {
 
     return response
       .type('html')
-      .send(this.renderPage(token, view, this.getBasePath(request)));
+      .send(await this.renderPage(token, view, this.getBasePath(request)));
   }
 
   @Get(['verify/:token/confirm', 'api/verify/:token/confirm'])
@@ -59,7 +64,7 @@ export class VerificationController {
 
     return response
       .type('html')
-      .send(this.renderPage(token, view, this.getBasePath(request)));
+      .send(await this.renderPage(token, view, this.getBasePath(request)));
   }
 
   @Post(['verify/:token/cancel', 'api/verify/:token/cancel'])
@@ -76,7 +81,7 @@ export class VerificationController {
 
     return response
       .type('html')
-      .send(this.renderPage(token, view, this.getBasePath(request)));
+      .send(await this.renderPage(token, view, this.getBasePath(request)));
   }
 
   @Get(['verify/:token/cancel', 'api/verify/:token/cancel'])
@@ -92,7 +97,7 @@ export class VerificationController {
 
     return response
       .type('html')
-      .send(this.renderPage(token, view, this.getBasePath(request)));
+      .send(await this.renderPage(token, view, this.getBasePath(request)));
   }
 
   private getBasePath(request: Request) {
@@ -106,14 +111,22 @@ export class VerificationController {
     };
   }
 
-  private renderPage(token: string, view: VerificationView, basePath: string) {
+  private async renderPage(
+    token: string,
+    view: VerificationView,
+    basePath: string,
+  ) {
     const order = view.order;
 
     if (
       order.status === 'CONFIRMED' ||
       order.status === 'CANCELLED_BY_CUSTOMER'
     ) {
-      return this.renderDecisionTemplate1(view);
+      const template = await this.messages.getOrCreateVerificationEmailTemplate(
+        view.shop.id,
+      );
+
+      return this.renderDecisionTemplate(view, template.templateKey);
     }
 
     const shopName = view.shop.name || view.shop.domain;
@@ -160,11 +173,14 @@ export class VerificationController {
 </html>`;
   }
 
-  private renderDecisionTemplate1(view: VerificationView) {
+  private renderDecisionTemplate(
+    view: VerificationView,
+    templateKey: string | null,
+  ) {
     const order = view.order;
     const isCancelled = order.status === 'CANCELLED_BY_CUSTOMER';
 
-    return renderTemplate1({
+    const input = {
       shopName: view.shop.name || view.shop.domain,
       orderName: order.orderName || order.orderNumber || '#' + order.id,
       statusTitle: isCancelled
@@ -191,7 +207,11 @@ export class VerificationController {
       shippingAddress:
         this.formatShippingAddress(order.shippingAddressJson) || 'N/A',
       paymentMethod: order.paymentMethod || 'Thanh toán khi nhận hàng',
-    });
+    };
+
+    return templateKey === 'template-2'
+      ? renderTemplate2(input)
+      : renderTemplate1(input);
   }
 
   private getStatusMessage(view: VerificationView) {

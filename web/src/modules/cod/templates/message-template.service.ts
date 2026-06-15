@@ -6,7 +6,10 @@ export type UpdateMessageTemplateDto = {
   subject?: string | null;
   body?: string;
   enabled?: boolean;
+  templateKey?: string;
 };
+
+const AVAILABLE_MESSAGE_TEMPLATE_KEYS = new Set(['template-1', 'template-2']);
 
 @Injectable()
 export class MessageTemplateService {
@@ -58,6 +61,14 @@ export class MessageTemplateService {
       }
 
       data.enabled = dto.enabled;
+    }
+
+    if (dto.templateKey !== undefined) {
+      if (!AVAILABLE_MESSAGE_TEMPLATE_KEYS.has(dto.templateKey)) {
+        throw new BadRequestException('Unsupported message template');
+      }
+
+      data.templateKey = dto.templateKey;
     }
 
     return this.templates.update(id, shopId, data);

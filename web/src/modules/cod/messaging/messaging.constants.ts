@@ -6,6 +6,7 @@ export const DEFAULT_VERIFICATION_EMAIL_TEMPLATE = {
   type: MessageTemplateType.VERIFICATION,
   channel: VerificationChannel.EMAIL,
   locale: DEFAULT_MESSAGE_LOCALE,
+  templateKey: 'template-1',
   subject: 'Xác nhận đơn hàng COD {{orderName}}',
   body: [
     'Xin chào {{customerName}},',
