@@ -5,6 +5,7 @@ import {
   Card,
   Checkbox,
   Divider,
+  InlineGrid,
   InlineStack,
   Select,
   SkeletonBodyText,
@@ -127,7 +128,7 @@ function MessageTemplatesScreen() {
                     </Button>
                   </InlineStack>
 
-                  <div className="grid grid-cols-[minmax(280px,420px)_minmax(360px,1fr)] items-start gap-6">
+                  <InlineGrid columns={['oneThird', 'twoThirds']} gap="600">
                     <BlockStack gap="300">
                       <Checkbox
                         label="Enable template"
@@ -188,7 +189,7 @@ function MessageTemplatesScreen() {
                         templateId={selectedTemplates[template.id]}
                       />
                     </BlockStack>
-                  </div>
+                  </InlineGrid>
                 </BlockStack>
               </Card>
             );

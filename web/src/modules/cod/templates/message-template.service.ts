@@ -17,7 +17,23 @@ export class MessageTemplateService {
 
   async list(shopId: number) {
     await this.messaging.getOrCreateVerificationEmailTemplate(shopId);
-    return this.templates.list(shopId);
+    const templates = await this.templates.list(shopId);
+
+    return Promise.all(
+      templates.map(async (template) => {
+        const sanitizedBody = this.removeLegacyVerificationUrlLines(
+          template.body,
+        );
+
+        if (sanitizedBody === template.body) {
+          return template;
+        }
+
+        return this.templates.update(template.id, shopId, {
+          body: sanitizedBody,
+        });
+      }),
+    );
   }
 
   update(id: number, shopId: number, dto: UpdateMessageTemplateDto) {
@@ -33,7 +49,7 @@ export class MessageTemplateService {
         throw new BadRequestException('Template body is required');
       }
 
-      data.body = dto.body;
+      data.body = this.removeLegacyVerificationUrlLines(dto.body);
     }
 
     if (dto.enabled !== undefined) {
@@ -45,5 +61,24 @@ export class MessageTemplateService {
     }
 
     return this.templates.update(id, shopId, data);
+  }
+
+  private removeLegacyVerificationUrlLines(body: string) {
+    return body
+      .split('\n')
+      .filter((line) => {
+        const normalized = line.trim().toLowerCase();
+
+        return (
+          !normalized.includes('{{verificationurl}}') &&
+          !normalized.includes('verificationurl') &&
+          !normalized.includes('link sau') &&
+          !normalized.includes('link xác nhận') &&
+          !normalized.includes('link xac nhan')
+        );
+      })
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   }
 }
