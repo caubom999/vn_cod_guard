@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { MessagingRepository } from './messaging.repository';
 import { MessageTemplateRenderer } from './message-template.renderer';
 import { EmailProvider } from './providers/email.provider';
+import { renderConfirmedTemplate1 } from '../verification/verification-confirmed-template-1';
 
 type SendVerificationMessageInput = {
   verificationSessionId: number;
@@ -89,7 +90,12 @@ export class MessagingService {
       currency: context.currency,
       expiresAt: context.expiresAt,
       verificationUrl,
-      lineItems: this.getLineItemSummary(order.lineItemsJson),
+      placedAt: this.formatDateTime(order.createdAt),
+      deliveryWindow: this.formatDeliveryWindow(order.createdAt),
+      lineItems: this.getDetailedLineItems(order.lineItemsJson),
+      shippingAddress: this.formatShippingAddress(order.shippingAddressJson),
+      paymentMethod: order.paymentMethod || 'Thanh toán khi nhận hàng',
+      customerPhone: order.customerPhone || 'N/A',
     });
     const recipient = order.customerEmail || '';
 
@@ -190,11 +196,18 @@ export class MessagingService {
     currency: string | number | boolean | null | undefined;
     expiresAt: string | number | boolean | null | undefined;
     verificationUrl: string;
-    lineItems: string[];
+    placedAt: string;
+    deliveryWindow: string;
+    lineItems: Array<{
+      title: string;
+      variantTitle: string | null;
+      quantity: number;
+      price: string | null;
+    }>;
+    shippingAddress: string;
+    paymentMethod: string;
+    customerPhone: string;
   }) {
-    const amount = [input.amount, input.currency]
-      .filter((value) => value !== null && value !== undefined && value !== '')
-      .join(' ');
     const message = this.removeVerificationUrlLine(
       input.body,
       input.verificationUrl,
@@ -202,53 +215,28 @@ export class MessagingService {
     const confirmUrl = this.buildDecisionUrl(input.verificationUrl, 'confirm');
     const cancelUrl = this.buildDecisionUrl(input.verificationUrl, 'cancel');
 
-    return `<!doctype html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${this.escapeHtml(String(input.shopName || 'COD verification'))}</title>
-</head>
-<body style="margin:0;padding:0;background:#f6f6f7;color:#202223;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f7;padding:24px 12px;">
-    <tr>
-      <td align="center">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #dfe3e8;border-radius:8px;overflow:hidden;">
-          <tr>
-            <td style="padding:20px 24px;border-bottom:1px solid #e3e3e3;">
-              <p style="margin:0 0 6px;color:#6d7175;font-size:13px;">${this.escapeHtml(String(input.shopName || ''))}</p>
-              <h1 style="margin:0;color:#202223;font-size:22px;line-height:1.3;">Xac nhan don hang COD</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:20px 24px;">
-              <div style="font-size:14px;line-height:1.6;color:#202223;">${this.renderEmailParagraphs(message)}</div>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;border:1px solid #e3e3e3;border-radius:8px;background:#fafafa;">
-                ${this.renderEmailRow('Ma don', String(input.orderName || 'N/A'))}
-                ${this.renderEmailRow('Khach hang', String(input.customerName || 'N/A'))}
-                ${this.renderEmailRow('Tong tien', amount || 'N/A')}
-                ${this.renderEmailRow('Han xac nhan', String(input.expiresAt || 'N/A'))}
-              </table>
-              ${input.lineItems.length ? this.renderLineItems(input.lineItems) : ''}
-              <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:24px;">
-                <tr>
-                  <td style="padding-right:12px;padding-bottom:12px;">
-                    <a href="${this.escapeHtml(confirmUrl)}" style="display:inline-block;background:#008060;color:#ffffff;text-decoration:none;font-weight:700;border-radius:6px;padding:12px 18px;">Xac nhan don</a>
-                  </td>
-                  <td style="padding-bottom:12px;">
-                    <a href="${this.escapeHtml(cancelUrl)}" style="display:inline-block;background:#d82c0d;color:#ffffff;text-decoration:none;font-weight:700;border-radius:6px;padding:12px 18px;">Huy don</a>
-                  </td>
-                </tr>
-              </table>
-              <p style="margin:8px 0 0;color:#6d7175;font-size:12px;line-height:1.5;">Lua chon cua ban se duoc ghi nhan ngay khi bam vao nut trong email.</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
+    return renderConfirmedTemplate1({
+      mode: 'verification',
+      shopName: String(input.shopName || ''),
+      orderName: String(input.orderName || 'N/A'),
+      statusTitle: 'Xác nhận đơn hàng COD',
+      messageHtml: this.renderEmailParagraphs(message),
+      expiresAt: String(input.expiresAt || 'N/A'),
+      confirmUrl,
+      cancelUrl,
+      placedAt: input.placedAt,
+      deliveryWindow: input.deliveryWindow,
+      items: input.lineItems,
+      totalAmount: this.formatAmount(
+        String(input.amount || ''),
+        String(input.currency || 'VND'),
+      ),
+      currency: String(input.currency || 'VND'),
+      customerName: String(input.customerName || 'N/A'),
+      customerPhone: input.customerPhone,
+      shippingAddress: input.shippingAddress || 'N/A',
+      paymentMethod: input.paymentMethod,
+    });
   }
 
   private removeVerificationUrlLine(body: string, verificationUrl: string) {
@@ -289,26 +277,7 @@ export class MessagingService {
       .join('');
   }
 
-  private renderEmailRow(label: string, value: string) {
-    return `<tr>
-      <td style="padding:10px 12px;color:#6d7175;font-size:13px;border-bottom:1px solid #e3e3e3;">${this.escapeHtml(label)}</td>
-      <td style="padding:10px 12px;color:#202223;font-size:13px;font-weight:700;text-align:right;border-bottom:1px solid #e3e3e3;">${this.escapeHtml(value)}</td>
-    </tr>`;
-  }
-
-  private renderLineItems(items: string[]) {
-    return `<div style="margin:20px 0;">
-      <p style="margin:0 0 8px;font-weight:700;">San pham</p>
-      <ul style="margin:0;padding-left:20px;color:#202223;">${items
-        .map(
-          (item) =>
-            `<li style="margin-bottom:6px;">${this.escapeHtml(item)}</li>`,
-        )
-        .join('')}</ul>
-    </div>`;
-  }
-
-  private getLineItemSummary(value: unknown) {
+  private getDetailedLineItems(value: unknown) {
     if (!Array.isArray(value)) {
       return [];
     }
@@ -321,13 +290,94 @@ export class MessagingService {
 
         const lineItem = item as Record<string, unknown>;
         const title =
-          typeof lineItem.title === 'string' ? lineItem.title : 'San pham';
+          typeof lineItem.title === 'string' && lineItem.title.trim()
+            ? lineItem.title
+            : 'San pham';
+        const variantTitle =
+          typeof lineItem.variantTitle === 'string' &&
+          lineItem.variantTitle.trim()
+            ? lineItem.variantTitle
+            : null;
         const quantity =
           typeof lineItem.quantity === 'number' ? lineItem.quantity : 1;
+        const price =
+          typeof lineItem.price === 'string' && lineItem.price.trim()
+            ? lineItem.price
+            : null;
 
-        return `${title} x${quantity}`;
+        return { title, variantTitle, quantity, price };
       })
-      .filter((item): item is string => Boolean(item));
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  }
+
+  private formatShippingAddress(value: unknown) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return '';
+    }
+
+    const address = value as Record<string, unknown>;
+    const parts = [
+      this.stringValue(address.address1),
+      this.stringValue(address.address2),
+      this.stringValue(address.ward),
+      this.stringValue(address.district),
+      this.stringValue(address.city),
+      this.stringValue(address.province),
+      this.stringValue(address.country),
+    ];
+
+    return parts.filter(Boolean).join(', ');
+  }
+
+  private stringValue(value: unknown) {
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  private formatAmount(value: string, currency: string) {
+    const amount = Number(value);
+
+    if (Number.isNaN(amount)) {
+      return `${value} ${currency}`.trim();
+    }
+
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: currency === 'VND' ? 0 : 2,
+    }).format(amount);
+  }
+
+  private formatDateTime(value: Date) {
+    return new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(value);
+  }
+
+  private formatDeliveryWindow(value: Date) {
+    const start = new Date(value);
+    const end = new Date(value);
+
+    start.setDate(start.getDate() + 2);
+    end.setDate(end.getDate() + 5);
+
+    const startDay = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      day: '2-digit',
+    }).format(start);
+    const endDate = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(end);
+
+    return `${startDay}-${endDate}`;
   }
 
   private redactVerificationUrl(verificationUrl: string) {

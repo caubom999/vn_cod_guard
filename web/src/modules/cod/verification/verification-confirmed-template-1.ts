@@ -8,11 +8,16 @@ export type ConfirmedTemplateLineItem = {
 export type ConfirmedTemplate1Input = {
   shopName: string;
   orderName: string;
+  mode?: 'decision' | 'verification';
   statusTitle?: string;
   statusIcon?: string;
   statusColor?: string;
   paymentStatus?: string;
   footerMessage?: string;
+  messageHtml?: string;
+  expiresAt?: string;
+  confirmUrl?: string;
+  cancelUrl?: string;
   placedAt: string;
   deliveryWindow: string;
   items: ConfirmedTemplateLineItem[];
@@ -25,13 +30,22 @@ export type ConfirmedTemplate1Input = {
 };
 
 export function renderConfirmedTemplate1(input: ConfirmedTemplate1Input) {
-  const statusTitle = input.statusTitle || 'Đơn hàng đã được xác nhận';
+  const mode = input.mode || 'decision';
+  const statusTitle =
+    input.statusTitle ||
+    (mode === 'verification'
+      ? 'Xác nhận đơn hàng COD'
+      : 'Đơn hàng đã được xác nhận');
   const statusIcon = input.statusIcon || '✓';
   const statusColor = input.statusColor || '#18bf29';
-  const paymentStatus = input.paymentStatus || 'Đã xác nhận COD';
+  const paymentStatus =
+    input.paymentStatus ||
+    (mode === 'verification' ? 'Chờ xác nhận COD' : 'Đã xác nhận COD');
   const footerMessage =
     input.footerMessage ||
-    'Email này được gửi tự động sau khi bạn xác nhận đơn hàng COD.';
+    (mode === 'verification'
+      ? 'Lựa chọn của bạn sẽ được ghi nhận ngay khi bấm vào nút trong email.'
+      : 'Email này được gửi tự động sau khi bạn xác nhận đơn hàng COD.');
 
   return `<!doctype html>
 <html lang="vi">
@@ -50,6 +64,9 @@ export function renderConfirmedTemplate1(input: ConfirmedTemplate1Input) {
     .order-meta { text-align: right; }
     .label { color: #8c8989; font-size: 13px; margin-bottom: 8px; }
     .order-code { color: #000; font-size: 15px; font-weight: 800; }
+    .intro { background: #f3f3f3; padding: 26px 25px 18px; color: #202223; font-size: 14px; line-height: 1.6; }
+    .intro p { margin: 0 0 12px; }
+    .deadline { margin: 10px 0 0; color: #000; font-size: 13px; font-weight: 800; }
     .hero { background: #f3f3f3; text-align: center; padding: 33px 25px 19px; }
     .check { width: 62px; height: 62px; margin: 0 auto 24px; border-radius: 50%; background: ${statusColor}; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 45px; line-height: 1; font-weight: 800; }
     h1 { margin: 0 0 20px; font-size: 25px; line-height: 1; color: #403f3f; }
@@ -63,6 +80,10 @@ export function renderConfirmedTemplate1(input: ConfirmedTemplate1Input) {
     .item-variant, .item-qty { color: #666363; font-size: 12px; margin-top: 8px; }
     .item-price { color: #666363; font-size: 14px; font-weight: 800; margin-top: 12px; }
     .total { background: #ffffff; text-align: right; padding: 16px 25px 20px; color: #000; font-size: 17px; font-weight: 800; }
+    .actions { background: #ffffff; padding: 20px 25px 26px; }
+    .button { display: inline-block; color: #ffffff !important; text-decoration: none !important; font-size: 17px; font-weight: 800; border-radius: 6px; padding: 14px 22px; margin: 0 12px 12px 0; }
+    .confirm { background: #008060; }
+    .cancel { background: #d82c0d; }
     .info { background: #f3f3f3; display: table; width: 100%; padding: 20px 0; }
     .info-col { display: table-cell; width: 50%; vertical-align: top; padding: 0 25px; box-sizing: border-box; }
     .info-title { margin: 0 0 18px; color: #000; font-size: 13px; font-weight: 800; text-transform: uppercase; }
@@ -87,12 +108,20 @@ export function renderConfirmedTemplate1(input: ConfirmedTemplate1Input) {
         <div class="order-code">${escapeHtml(input.orderName)}</div>
       </div>
     </div>
-    <div class="hero">
+    ${
+      mode === 'verification'
+        ? `<div class="intro">
+      <h1>${escapeHtml(statusTitle)}</h1>
+      ${input.messageHtml || ''}
+      ${input.expiresAt ? `<p class="deadline">Hạn xác nhận: ${escapeHtml(input.expiresAt)}</p>` : ''}
+    </div>`
+        : `<div class="hero">
       <div class="check">${escapeHtml(statusIcon)}</div>
       <h1>${escapeHtml(statusTitle)}</h1>
       <p>Ngày đặt: ${escapeHtml(input.placedAt)}</p>
       <p>Dự kiến giao: ${escapeHtml(input.deliveryWindow)}</p>
-    </div>
+    </div>`
+    }
     <div class="section">
       <h2 class="section-title">Thông tin đơn hàng</h2>
       ${
@@ -104,6 +133,14 @@ export function renderConfirmedTemplate1(input: ConfirmedTemplate1Input) {
       }
     </div>
     <div class="total">Tổng cộng: ${escapeHtml(input.totalAmount)}</div>
+    ${
+      mode === 'verification'
+        ? `<div class="actions">
+      ${input.confirmUrl ? `<a class="button confirm" href="${escapeHtml(input.confirmUrl)}" style="color:#ffffff !important;text-decoration:none !important;"><span style="color:#ffffff !important;text-decoration:none !important;">Xác nhận đơn</span></a>` : ''}
+      ${input.cancelUrl ? `<a class="button cancel" href="${escapeHtml(input.cancelUrl)}" style="color:#ffffff !important;text-decoration:none !important;"><span style="color:#ffffff !important;text-decoration:none !important;">Hủy đơn</span></a>` : ''}
+    </div>`
+        : ''
+    }
     <div class="info">
       <div class="info-col">
         <h3 class="info-title">Giao hàng đến</h3>
