@@ -10,6 +10,7 @@ import { MessageTemplateRenderer } from './message-template.renderer';
 import { EmailProvider } from './providers/email.provider';
 import { renderTemplate1 } from '../verification/templates/template-1';
 import { renderTemplate2 } from '../verification/templates/template-2';
+import { renderTemplate3 } from '../verification/templates/template-3';
 
 type SendVerificationMessageInput = {
   verificationSessionId: number;
@@ -246,9 +247,15 @@ export class MessagingService {
     templateKey: string | null | undefined,
     input: Parameters<typeof renderTemplate1>[0],
   ) {
-    return templateKey === 'template-2'
-      ? renderTemplate2(input)
-      : renderTemplate1(input);
+    if (templateKey === 'template-2') {
+      return renderTemplate2(input);
+    }
+
+    if (templateKey === 'template-3') {
+      return renderTemplate3(input);
+    }
+
+    return renderTemplate1(input);
   }
 
   private removeVerificationUrlLine(body: string, verificationUrl: string) {
