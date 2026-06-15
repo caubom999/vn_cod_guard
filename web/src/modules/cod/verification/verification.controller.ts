@@ -9,7 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { renderConfirmedTemplate1 } from './verification-confirmed-template-1';
+import { renderTemplate1 } from './templates/template-1';
 import { VerificationService, VerificationView } from './verification.service';
 
 @Controller()
@@ -164,7 +164,7 @@ export class VerificationController {
     const order = view.order;
     const isCancelled = order.status === 'CANCELLED_BY_CUSTOMER';
 
-    return renderConfirmedTemplate1({
+    return renderTemplate1({
       shopName: view.shop.name || view.shop.domain,
       orderName: order.orderName || order.orderNumber || '#' + order.id,
       statusTitle: isCancelled

@@ -1,35 +1,9 @@
-export type ConfirmedTemplateLineItem = {
-  title: string;
-  variantTitle: string | null;
-  quantity: number;
-  price: string | null;
-};
+import {
+  VerificationTemplateInput,
+  VerificationTemplateLineItem,
+} from './types/template.types';
 
-export type ConfirmedTemplate1Input = {
-  shopName: string;
-  orderName: string;
-  mode?: 'decision' | 'verification';
-  statusTitle?: string;
-  statusIcon?: string;
-  statusColor?: string;
-  paymentStatus?: string;
-  footerMessage?: string;
-  messageHtml?: string;
-  expiresAt?: string;
-  confirmUrl?: string;
-  cancelUrl?: string;
-  placedAt: string;
-  deliveryWindow: string;
-  items: ConfirmedTemplateLineItem[];
-  totalAmount: string;
-  currency: string;
-  customerName: string;
-  customerPhone: string;
-  shippingAddress: string;
-  paymentMethod: string;
-};
-
-export function renderConfirmedTemplate1(input: ConfirmedTemplate1Input) {
+export function renderTemplate1(input: VerificationTemplateInput) {
   const mode = input.mode || 'decision';
   const statusTitle =
     input.statusTitle ||
@@ -126,9 +100,7 @@ export function renderConfirmedTemplate1(input: ConfirmedTemplate1Input) {
       <h2 class="section-title">Thông tin đơn hàng</h2>
       ${
         input.items.length
-          ? input.items
-              .map((item) => renderConfirmedItem(item, input.currency))
-              .join('')
+          ? input.items.map((item) => renderLineItem(item, input.currency)).join('')
           : '<div class="item"><div class="item-left"><div class="item-name">Sản phẩm</div></div><div class="item-right"><div class="item-qty">Số lượng: 1</div></div></div>'
       }
     </div>
@@ -164,10 +136,7 @@ export function renderConfirmedTemplate1(input: ConfirmedTemplate1Input) {
 </html>`;
 }
 
-function renderConfirmedItem(
-  item: ConfirmedTemplateLineItem,
-  currency: string,
-) {
+function renderLineItem(item: VerificationTemplateLineItem, currency: string) {
   const price = item.price ? formatMoney(item.price, currency) : '';
 
   return `<div class="item">

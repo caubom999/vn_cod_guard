@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { MessagingRepository } from './messaging.repository';
 import { MessageTemplateRenderer } from './message-template.renderer';
 import { EmailProvider } from './providers/email.provider';
-import { renderConfirmedTemplate1 } from '../verification/verification-confirmed-template-1';
+import { renderTemplate1 } from '../verification/templates/template-1';
 
 type SendVerificationMessageInput = {
   verificationSessionId: number;
@@ -215,7 +215,7 @@ export class MessagingService {
     const confirmUrl = this.buildDecisionUrl(input.verificationUrl, 'confirm');
     const cancelUrl = this.buildDecisionUrl(input.verificationUrl, 'cancel');
 
-    return renderConfirmedTemplate1({
+    return renderTemplate1({
       mode: 'verification',
       shopName: String(input.shopName || ''),
       orderName: String(input.orderName || 'N/A'),
