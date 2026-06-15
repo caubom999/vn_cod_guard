@@ -9,6 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { renderConfirmedTemplate1 } from './verification-confirmed-template-1';
 import { VerificationService, VerificationView } from './verification.service';
 
 @Controller()
@@ -107,6 +108,14 @@ export class VerificationController {
 
   private renderPage(token: string, view: VerificationView, basePath: string) {
     const order = view.order;
+
+    if (
+      order.status === 'CONFIRMED' ||
+      order.status === 'CANCELLED_BY_CUSTOMER'
+    ) {
+      return this.renderDecisionTemplate1(view);
+    }
+
     const shopName = view.shop.name || view.shop.domain;
     const amount = order.totalAmount
       ? `${order.totalAmount.toString()} ${order.currency || ''}`.trim()
@@ -151,6 +160,40 @@ export class VerificationController {
 </html>`;
   }
 
+  private renderDecisionTemplate1(view: VerificationView) {
+    const order = view.order;
+    const isCancelled = order.status === 'CANCELLED_BY_CUSTOMER';
+
+    return renderConfirmedTemplate1({
+      shopName: view.shop.name || view.shop.domain,
+      orderName: order.orderName || order.orderNumber || '#' + order.id,
+      statusTitle: isCancelled
+        ? 'Đơn hàng đã được hủy'
+        : 'Đơn hàng đã được xác nhận',
+      statusIcon: isCancelled ? '×' : '✓',
+      statusColor: isCancelled ? '#d82c0d' : '#18bf29',
+      paymentStatus: isCancelled ? 'Đã hủy COD' : 'Đã xác nhận COD',
+      footerMessage: isCancelled
+        ? 'Email này được gửi tự động sau khi bạn hủy đơn hàng COD.'
+        : 'Email này được gửi tự động sau khi bạn xác nhận đơn hàng COD.',
+      placedAt: this.formatDateTime(order.createdAt),
+      deliveryWindow: this.formatDeliveryWindow(order.createdAt),
+      items: this.getDetailedLineItems(order.lineItemsJson),
+      totalAmount: order.totalAmount
+        ? this.formatMoney(
+            order.totalAmount.toString(),
+            order.currency || 'VND',
+          )
+        : 'N/A',
+      currency: order.currency || 'VND',
+      customerName: order.customerName || 'N/A',
+      customerPhone: order.customerPhone || 'N/A',
+      shippingAddress:
+        this.formatShippingAddress(order.shippingAddressJson) || 'N/A',
+      paymentMethod: order.paymentMethod || 'Thanh toán khi nhận hàng',
+    });
+  }
+
   private getStatusMessage(view: VerificationView) {
     if (view.isExpired) {
       return 'Link xác nhận đã hết hạn.';
@@ -187,6 +230,109 @@ export class VerificationController {
         return `${title} x${quantity}`;
       })
       .filter((item): item is string => Boolean(item));
+  }
+
+  private getDetailedLineItems(value: unknown) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+
+        const lineItem = item as Record<string, unknown>;
+        const title =
+          typeof lineItem.title === 'string' && lineItem.title.trim()
+            ? lineItem.title
+            : 'Sản phẩm';
+        const variantTitle =
+          typeof lineItem.variantTitle === 'string' &&
+          lineItem.variantTitle.trim()
+            ? lineItem.variantTitle
+            : null;
+        const quantity =
+          typeof lineItem.quantity === 'number' ? lineItem.quantity : 1;
+        const price =
+          typeof lineItem.price === 'string' && lineItem.price.trim()
+            ? lineItem.price
+            : null;
+
+        return { title, variantTitle, quantity, price };
+      })
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  }
+
+  private formatShippingAddress(value: unknown) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return '';
+    }
+
+    const address = value as Record<string, unknown>;
+    const parts = [
+      this.stringValue(address.address1),
+      this.stringValue(address.address2),
+      this.stringValue(address.ward),
+      this.stringValue(address.district),
+      this.stringValue(address.city),
+      this.stringValue(address.province),
+      this.stringValue(address.country),
+    ];
+
+    return parts.filter(Boolean).join(', ');
+  }
+
+  private stringValue(value: unknown) {
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  private formatMoney(value: string, currency: string) {
+    const amount = Number(value);
+
+    if (Number.isNaN(amount)) {
+      return `${value} ${currency}`.trim();
+    }
+
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: currency === 'VND' ? 0 : 2,
+    }).format(amount);
+  }
+
+  private formatDateTime(value: Date) {
+    return new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(value);
+  }
+
+  private formatDeliveryWindow(value: Date) {
+    const start = new Date(value);
+    const end = new Date(value);
+
+    start.setDate(start.getDate() + 2);
+    end.setDate(end.getDate() + 5);
+
+    const startDay = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      day: '2-digit',
+    }).format(start);
+    const endDate = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(end);
+
+    return `${startDay}-${endDate}`;
   }
 
   private escape(value: string) {
