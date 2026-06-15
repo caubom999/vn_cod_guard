@@ -24,6 +24,7 @@ import {
   type TemplatePreviewDraft,
 } from './templates/template-1';
 import { Template2Preview } from './templates/template-2';
+import { Template3Preview } from './templates/template-3';
 
 const templateRegistry: Record<
   string,
@@ -31,6 +32,7 @@ const templateRegistry: Record<
 > = {
   'template-1': { label: 'Template 1', Preview: Template1Preview },
   'template-2': { label: 'Template 2', Preview: Template2Preview },
+  'template-3': { label: 'Template 3', Preview: Template3Preview },
 };
 
 const templateOptions = Object.entries(templateRegistry).map(

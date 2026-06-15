@@ -12,6 +12,7 @@ import { Request, Response } from 'express';
 import { MessagingRepository } from '../messaging/messaging.repository';
 import { renderTemplate1 } from './templates/template-1';
 import { renderTemplate2 } from './templates/template-2';
+import { renderTemplate3 } from './templates/template-3';
 import { VerificationService, VerificationView } from './verification.service';
 
 @Controller()
@@ -209,9 +210,15 @@ export class VerificationController {
       paymentMethod: order.paymentMethod || 'Thanh toán khi nhận hàng',
     };
 
-    return templateKey === 'template-2'
-      ? renderTemplate2(input)
-      : renderTemplate1(input);
+    if (templateKey === 'template-2') {
+      return renderTemplate2(input);
+    }
+
+    if (templateKey === 'template-3') {
+      return renderTemplate3(input);
+    }
+
+    return renderTemplate1(input);
   }
 
   private getStatusMessage(view: VerificationView) {

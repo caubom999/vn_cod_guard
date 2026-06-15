@@ -9,7 +9,11 @@ export type UpdateMessageTemplateDto = {
   templateKey?: string;
 };
 
-const AVAILABLE_MESSAGE_TEMPLATE_KEYS = new Set(['template-1', 'template-2']);
+const AVAILABLE_MESSAGE_TEMPLATE_KEYS = new Set([
+  'template-1',
+  'template-2',
+  'template-3',
+]);
 
 @Injectable()
 export class MessageTemplateService {
