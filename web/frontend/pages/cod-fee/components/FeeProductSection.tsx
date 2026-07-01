@@ -1,10 +1,4 @@
-import {
-  BlockStack,
-  Button,
-  Card,
-  InlineStack,
-  Text,
-} from '@shopify/polaris';
+import { BlockStack, Button, Card, InlineStack, Text } from '@shopify/polaris';
 import type { FeeProductSectionProps } from '../../../types/cod-fee';
 
 export function FeeProductSection({

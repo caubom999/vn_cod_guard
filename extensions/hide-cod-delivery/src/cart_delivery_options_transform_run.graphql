@@ -1,0 +1,23 @@
+query CartDeliveryOptionsTransformRunInput {
+  cart {
+    cost {
+      subtotalAmount {
+        amount
+      }
+    }
+    deliveryGroups {
+      deliveryOptions {
+        handle
+        title
+      }
+    }
+  }
+  deliveryCustomization {
+    metafield(
+      namespace: "$app:hide-cod-delivery"
+      key: "function-configuration"
+    ) {
+      jsonValue
+    }
+  }
+}

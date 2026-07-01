@@ -22,7 +22,13 @@ export type CodFeeFieldUpdater = <K extends keyof CodFeeDraft>(
 export type HideCodShippingMethodSectionProps = {
   draft: CodFeeDraft;
   setField: CodFeeFieldUpdater;
-  error?: string;
+  nameError?: string;
+  limitError?: string;
+  isDirty: boolean;
+  isLoading: boolean;
+  isSaving: boolean;
+  isSaved: boolean;
+  onSave: () => void;
 };
 
 export type FeeCalculationSectionProps = {
@@ -45,11 +51,4 @@ export type FeeProductSectionProps = {
 export type DisplayMessageSectionProps = {
   message: string;
   setField: CodFeeFieldUpdater;
-};
-
-export type CodFeeSaveBarProps = {
-  isDirty: boolean;
-  isValid: boolean;
-  hasSaved: boolean;
-  onSave: () => void;
 };

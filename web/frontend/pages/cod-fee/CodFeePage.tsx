@@ -1,5 +1,11 @@
 import { BlockStack, InlineGrid } from '@shopify/polaris';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { ErrorBanner } from '../../components/dashboard/shared';
+import {
+  type CodDeliveryRule,
+  useCodDeliveryRule,
+  useUpdateCodDeliveryRule,
+} from '../../hook/cod-delivery-rule';
 import type {
   CodFeeDraft,
   CodFeeFieldUpdater,
@@ -7,10 +13,9 @@ import type {
 } from '../../types/cod-fee';
 import {
   getFeeAmountError,
-  getShippingLimitError,
+  getShippingRuleValidation,
   initialCodFeeDraft,
 } from './cod-fee-form';
-import { CodFeeSaveBar } from './components/CodFeeSaveBar';
 import { DisplayMessageSection } from './components/DisplayMessageSection';
 import { FeeCalculationSection } from './components/FeeCalculationSection';
 import { FeeConditionsSection } from './components/FeeConditionsSection';
@@ -19,16 +24,32 @@ import { HideCodShippingMethodSection } from './components/HideCodShippingMethod
 
 function CodFeePage() {
   const [draft, setDraft] = useState<CodFeeDraft>(initialCodFeeDraft);
-  const [savedDraft, setSavedDraft] =
-    useState<CodFeeDraft>(initialCodFeeDraft);
-  const [hasSaved, setHasSaved] = useState(false);
-
-  const isDirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(savedDraft),
-    [draft, savedDraft],
-  );
+  const deliveryRule = useCodDeliveryRule();
+  const updateDeliveryRule = useUpdateCodDeliveryRule();
   const feeAmountError = getFeeAmountError(draft);
-  const shippingLimitError = getShippingLimitError(draft);
+  const shippingValidation = getShippingRuleValidation(draft);
+  const deliveryRuleDirty = useMemo(
+    () =>
+      deliveryRule.data
+        ? JSON.stringify(toDeliveryRuleInput(draft)) !==
+          JSON.stringify(toDeliveryRuleInput(deliveryRule.data))
+        : false,
+    [draft, deliveryRule.data],
+  );
+
+  useEffect(() => {
+    if (!deliveryRule.data) {
+      return;
+    }
+
+    setDraft((current) => ({
+      ...current,
+      hideCodShippingMethod: deliveryRule.data.enabled,
+      codShippingMethodName: deliveryRule.data.shippingMethodName,
+      hideBelowOrderTotal: amountToText(deliveryRule.data.hideBelowOrderTotal),
+      hideAboveOrderTotal: amountToText(deliveryRule.data.hideAboveOrderTotal),
+    }));
+  }, [deliveryRule.data]);
 
   const setField: CodFeeFieldUpdater = (key, value) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -42,17 +63,30 @@ function CodFeePage() {
     }));
   };
 
-  const handleSave = () => {
-    setSavedDraft(draft);
-    setHasSaved(true);
+  const handleDeliveryRuleSave = () => {
+    if (!shippingValidation.isValid) {
+      return;
+    }
+
+    updateDeliveryRule.mutate(toDeliveryRuleInput(draft));
   };
 
   return (
     <BlockStack gap="500">
+      {deliveryRule.error || updateDeliveryRule.error ? (
+        <ErrorBanner error={deliveryRule.error || updateDeliveryRule.error} />
+      ) : null}
+
       <HideCodShippingMethodSection
         draft={draft}
         setField={setField}
-        error={shippingLimitError}
+        nameError={shippingValidation.nameError}
+        limitError={shippingValidation.limitError}
+        isDirty={deliveryRuleDirty}
+        isLoading={deliveryRule.isLoading}
+        isSaving={updateDeliveryRule.isPending}
+        isSaved={updateDeliveryRule.isSuccess}
+        onSave={handleDeliveryRuleSave}
       />
 
       <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
@@ -65,22 +99,41 @@ function CodFeePage() {
         <FeeConditionsSection draft={draft} setField={setField} />
       </InlineGrid>
 
-      <FeeProductSection
-        feeVariant={draft.feeVariant}
-        setField={setField}
-      />
+      <FeeProductSection feeVariant={draft.feeVariant} setField={setField} />
       <DisplayMessageSection
         message={draft.displayMessage}
         setField={setField}
       />
-      <CodFeeSaveBar
-        isDirty={isDirty}
-        isValid={!feeAmountError && !shippingLimitError}
-        hasSaved={hasSaved}
-        onSave={handleSave}
-      />
     </BlockStack>
   );
+}
+
+function amountToText(value: number | null) {
+  return value === null ? '' : String(value);
+}
+
+function toDeliveryRuleInput(rule: CodFeeDraft | CodDeliveryRule) {
+  if ('hideCodShippingMethod' in rule) {
+    return {
+      enabled: rule.hideCodShippingMethod,
+      shippingMethodName: rule.codShippingMethodName.trim(),
+      hideBelowOrderTotal:
+        rule.hideBelowOrderTotal === ''
+          ? null
+          : Number(rule.hideBelowOrderTotal),
+      hideAboveOrderTotal:
+        rule.hideAboveOrderTotal === ''
+          ? null
+          : Number(rule.hideAboveOrderTotal),
+    };
+  }
+
+  return {
+    enabled: rule.enabled,
+    shippingMethodName: rule.shippingMethodName,
+    hideBelowOrderTotal: rule.hideBelowOrderTotal,
+    hideAboveOrderTotal: rule.hideAboveOrderTotal,
+  };
 }
 
 export default CodFeePage;

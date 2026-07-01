@@ -28,17 +28,30 @@ export function getFeeAmountError(draft: CodFeeDraft) {
   return undefined;
 }
 
-export function getShippingLimitError(draft: CodFeeDraft) {
+export function getShippingRuleValidation(draft: CodFeeDraft) {
+  const shippingMethodName = draft.codShippingMethodName.trim();
   const hasBothLimits =
     draft.hideBelowOrderTotal !== '' && draft.hideAboveOrderTotal !== '';
+  const hasAnyLimit =
+    draft.hideBelowOrderTotal !== '' || draft.hideAboveOrderTotal !== '';
+  const nameError = !shippingMethodName
+    ? 'Enter the shipping method name shown at checkout.'
+    : undefined;
+  let limitError: string | undefined;
 
   if (
     draft.hideCodShippingMethod &&
     hasBothLimits &&
     Number(draft.hideBelowOrderTotal) >= Number(draft.hideAboveOrderTotal)
   ) {
-    return 'The maximum order total must be greater than the minimum.';
+    limitError = 'The maximum order total must be greater than the minimum.';
+  } else if (draft.hideCodShippingMethod && !hasAnyLimit) {
+    limitError = 'Enter at least one order total limit.';
   }
 
-  return undefined;
+  return {
+    nameError,
+    limitError,
+    isValid: !nameError && !limitError,
+  };
 }

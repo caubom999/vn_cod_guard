@@ -8,6 +8,9 @@ import { AutomationService } from './automation/automation.service';
 import { CodDashboardController } from './dashboard/cod-dashboard.controller';
 import { CodDashboardRepository } from './dashboard/cod-dashboard.repository';
 import { CodDashboardService } from './dashboard/cod-dashboard.service';
+import { CodDeliveryRuleController } from './delivery/cod-delivery-rule.controller';
+import { CodDeliveryRuleRepository } from './delivery/cod-delivery-rule.repository';
+import { CodDeliveryRuleService } from './delivery/cod-delivery-rule.service';
 import { MessageTemplateController } from './templates/message-template.controller';
 import { MessageTemplateRepository } from './templates/message-template.repository';
 import { MessageTemplateService } from './templates/message-template.service';
@@ -32,6 +35,7 @@ import { VerificationService } from './verification/verification.service';
   controllers: [
     VerificationController,
     CodSettingsController,
+    CodDeliveryRuleController,
     RiskController,
     CodDashboardController,
     MessageTemplateController,
@@ -53,6 +57,8 @@ import { VerificationService } from './verification/verification.service';
     CodOrderRepository,
     CodSettingsService,
     CodSettingsRepository,
+    CodDeliveryRuleService,
+    CodDeliveryRuleRepository,
     VerificationService,
     VerificationRepository,
   ],
