@@ -4,6 +4,7 @@ import DashboardLayout from './components/dashboard/DashboardLayout';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import BillingPage from './pages/billing/BillingPage';
 import BlacklistPage from './pages/blacklist/BlacklistPage';
+import CodFeePage from './pages/cod-fee/CodFeePage';
 import OrdersPage from './pages/orders/OrdersPage';
 import OverviewPage from './pages/overview/OverviewPage';
 import SettingsPage from './pages/settings/SettingsPage';
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <OverviewPage /> },
           { path: 'orders', element: <OrdersPage /> },
+          { path: 'cod-fee', element: <CodFeePage /> },
           { path: 'billing', element: <BillingPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'templates', element: <TemplatesPage /> },

@@ -12,6 +12,7 @@ export default function Nav() {
         Overview
       </Link>
       <Link to={dashboardPath('/orders')}>Orders</Link>
+      <Link to={dashboardPath('/cod-fee')}>COD fee</Link>
       <Link to={dashboardPath('/billing')}>Billing</Link>
       <Link to={dashboardPath('/settings')}>Settings</Link>
       <Link to={dashboardPath('/templates')}>Message templates</Link>
