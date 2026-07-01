@@ -6,16 +6,22 @@ import {
   useCodDeliveryRule,
   useUpdateCodDeliveryRule,
 } from '../../hook/cod-delivery-rule';
+import {
+  useCodFeeSetting,
+  useUpdateCodFeeSetting,
+} from '../../hook/cod-fee-setting';
 import type {
   CodFeeDraft,
   CodFeeFieldUpdater,
+  CodFeeSetting,
   FeeType,
 } from '../../types/cod-fee';
 import {
-  getFeeAmountError,
+  getCodFeeValidation,
   getShippingRuleValidation,
   initialCodFeeDraft,
 } from './cod-fee-form';
+import { CodFeeSaveBar } from './components/CodFeeSaveBar';
 import { DisplayMessageSection } from './components/DisplayMessageSection';
 import { FeeCalculationSection } from './components/FeeCalculationSection';
 import { FeeConditionsSection } from './components/FeeConditionsSection';
@@ -26,7 +32,9 @@ function CodFeePage() {
   const [draft, setDraft] = useState<CodFeeDraft>(initialCodFeeDraft);
   const deliveryRule = useCodDeliveryRule();
   const updateDeliveryRule = useUpdateCodDeliveryRule();
-  const feeAmountError = getFeeAmountError(draft);
+  const feeSetting = useCodFeeSetting();
+  const updateFeeSetting = useUpdateCodFeeSetting();
+  const feeValidation = getCodFeeValidation(draft);
   const shippingValidation = getShippingRuleValidation(draft);
   const deliveryRuleDirty = useMemo(
     () =>
@@ -35,6 +43,14 @@ function CodFeePage() {
           JSON.stringify(toDeliveryRuleInput(deliveryRule.data))
         : false,
     [draft, deliveryRule.data],
+  );
+  const feeSettingDirty = useMemo(
+    () =>
+      feeSetting.data
+        ? JSON.stringify(toCodFeeInput(draft)) !==
+          JSON.stringify(toCodFeeInput(feeSetting.data))
+        : false,
+    [draft, feeSetting.data],
   );
 
   useEffect(() => {
@@ -50,6 +66,24 @@ function CodFeePage() {
       hideAboveOrderTotal: amountToText(deliveryRule.data.hideAboveOrderTotal),
     }));
   }, [deliveryRule.data]);
+
+  useEffect(() => {
+    if (!feeSetting.data) {
+      return;
+    }
+
+    setDraft((current) => ({
+      ...current,
+      feeEnabled: feeSetting.data.enabled,
+      feeType: feeSetting.data.feeType,
+      feeAmount: String(feeSetting.data.feeAmount),
+      minimumOrderAmount: amountToText(feeSetting.data.minimumOrderAmount),
+      provinces: feeSetting.data.provinces.join(', '),
+      excludedCustomerTags: feeSetting.data.excludedCustomerTags.join(', '),
+      lineItemTitle: feeSetting.data.lineItemTitle,
+      displayMessage: feeSetting.data.displayMessage,
+    }));
+  }, [feeSetting.data]);
 
   const setField: CodFeeFieldUpdater = (key, value) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -71,10 +105,28 @@ function CodFeePage() {
     updateDeliveryRule.mutate(toDeliveryRuleInput(draft));
   };
 
+  const handleCodFeeSave = () => {
+    if (!feeValidation.isValid) {
+      return;
+    }
+
+    updateFeeSetting.mutate(toCodFeeInput(draft));
+  };
+
   return (
     <BlockStack gap="500">
-      {deliveryRule.error || updateDeliveryRule.error ? (
-        <ErrorBanner error={deliveryRule.error || updateDeliveryRule.error} />
+      {deliveryRule.error ||
+      updateDeliveryRule.error ||
+      feeSetting.error ||
+      updateFeeSetting.error ? (
+        <ErrorBanner
+          error={
+            deliveryRule.error ||
+            updateDeliveryRule.error ||
+            feeSetting.error ||
+            updateFeeSetting.error
+          }
+        />
       ) : null}
 
       <HideCodShippingMethodSection
@@ -94,18 +146,78 @@ function CodFeePage() {
           draft={draft}
           setField={setField}
           onFeeTypeChange={handleFeeTypeChange}
-          error={feeAmountError}
+          error={feeValidation.feeAmountError}
+          disabled={feeSetting.isLoading || updateFeeSetting.isPending}
         />
-        <FeeConditionsSection draft={draft} setField={setField} />
+        <FeeConditionsSection
+          draft={draft}
+          setField={setField}
+          minimumError={feeValidation.minimumError}
+          disabled={feeSetting.isLoading || updateFeeSetting.isPending}
+        />
       </InlineGrid>
 
-      <FeeProductSection feeVariant={draft.feeVariant} setField={setField} />
+      <FeeProductSection
+        lineItemTitle={draft.lineItemTitle}
+        setField={setField}
+        error={feeValidation.lineItemTitleError}
+        disabled={feeSetting.isLoading || updateFeeSetting.isPending}
+      />
       <DisplayMessageSection
         message={draft.displayMessage}
         setField={setField}
+        error={feeValidation.displayMessageError}
+        disabled={feeSetting.isLoading || updateFeeSetting.isPending}
+      />
+      <CodFeeSaveBar
+        isDirty={feeSettingDirty}
+        isValid={feeValidation.isValid}
+        isSaving={updateFeeSetting.isPending}
+        isSaved={updateFeeSetting.isSuccess}
+        onSave={handleCodFeeSave}
       />
     </BlockStack>
   );
+}
+
+function toCodFeeInput(setting: CodFeeDraft | CodFeeSetting) {
+  if ('feeEnabled' in setting) {
+    return {
+      enabled: setting.feeEnabled,
+      feeType: setting.feeType,
+      feeAmount: Number(setting.feeAmount),
+      minimumOrderAmount:
+        setting.minimumOrderAmount === ''
+          ? null
+          : Number(setting.minimumOrderAmount),
+      provinces: splitList(setting.provinces),
+      excludedCustomerTags: splitList(setting.excludedCustomerTags),
+      lineItemTitle: setting.lineItemTitle.trim(),
+      displayMessage: setting.displayMessage.trim(),
+    };
+  }
+
+  return {
+    enabled: setting.enabled,
+    feeType: setting.feeType,
+    feeAmount: setting.feeAmount,
+    minimumOrderAmount: setting.minimumOrderAmount,
+    provinces: setting.provinces,
+    excludedCustomerTags: setting.excludedCustomerTags,
+    lineItemTitle: setting.lineItemTitle,
+    displayMessage: setting.displayMessage,
+  };
+}
+
+function splitList(value: string) {
+  return [
+    ...new Set(
+      value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function amountToText(value: number | null) {

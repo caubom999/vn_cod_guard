@@ -17,6 +17,7 @@ import {
 } from '../cod.constants';
 import { RiskService } from '../risk/risk.service';
 import { RiskResult } from '../risk/risk.types';
+import { CodFeeService } from '../fee/cod-fee.service';
 import { normalizeVietnamPhone } from '../utils/phone-normalizer';
 import { VerificationService } from '../verification/verification.service';
 import { CodOrderRepository } from './cod-order.repository';
@@ -40,6 +41,7 @@ export class CodOrderProcessorService {
     private readonly automation: AutomationService,
     private readonly risks: RiskService,
     private readonly billing: BillingService,
+    private readonly codFees: CodFeeService,
   ) {}
 
   async processOrdersCreate({
@@ -156,6 +158,19 @@ export class CodOrderProcessorService {
       } as Prisma.InputJsonValue,
     });
 
+    await this.applyCodFee({
+      shop,
+      codOrderId: codOrder.id,
+      shopifyOrderGid,
+      isCod,
+      totalAmount,
+      currency: this.getString(payload, 'currency'),
+      shippingProvince,
+      shippingCity,
+      customerTags: this.getTags(customer),
+      alreadyAppliedAt: codOrder.codFeeAppliedAt,
+    });
+
     if (billingLimitReached && billingEntitlement) {
       await this.billing.recordLimitReached({
         shopId: shop.id,
@@ -221,6 +236,69 @@ export class CodOrderProcessorService {
     }
 
     return codOrder;
+  }
+
+  private async applyCodFee(input: {
+    shop: Shop;
+    codOrderId: number;
+    shopifyOrderGid: string;
+    isCod: boolean;
+    totalAmount: Prisma.Decimal | null;
+    currency: string | null;
+    shippingProvince: string | null;
+    shippingCity: string | null;
+    customerTags: string[];
+    alreadyAppliedAt: Date | null;
+  }) {
+    try {
+      const result = await this.codFees.applyToOrder({
+        shop: input.shop,
+        codOrderId: input.codOrderId,
+        shopifyOrderGid: input.shopifyOrderGid,
+        isCod: input.isCod,
+        orderTotal: input.totalAmount,
+        currency: input.currency,
+        shippingProvince: input.shippingProvince,
+        shippingCity: input.shippingCity,
+        customerTags: input.customerTags,
+        alreadyAppliedAt: input.alreadyAppliedAt,
+      });
+
+      await this.orders.createEvent({
+        codOrderId: input.codOrderId,
+        type:
+          result.status === 'applied'
+            ? 'COD_FEE_APPLIED'
+            : result.status === 'already-applied'
+              ? 'COD_FEE_ALREADY_APPLIED'
+              : 'COD_FEE_SKIPPED',
+        message:
+          result.status === 'skipped'
+            ? result.reason
+            : result.status === 'applied'
+              ? 'COD fee was added to the Shopify order.'
+              : 'COD fee was already present on the Shopify order.',
+        metadataJson:
+          result.status === 'skipped'
+            ? undefined
+            : ({
+                amount: result.amount,
+                currency: input.currency,
+              } as Prisma.InputJsonValue),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      this.logger.warn(
+        `Could not apply COD fee to ${input.shopifyOrderGid}: ${message}`,
+      );
+      await this.codFees.markFailed(input.codOrderId, message);
+      await this.orders.createEvent({
+        codOrderId: input.codOrderId,
+        type: 'COD_FEE_FAILED',
+        message,
+      });
+    }
   }
 
   private async syncShopifyTags(input: {
@@ -453,6 +531,24 @@ export class CodOrderProcessorService {
 
     return Array.isArray(value)
       ? value.filter((item): item is string => typeof item === 'string')
+      : [];
+  }
+
+  private getTags(source: Record<string, unknown> | null) {
+    const value = source?.tags;
+
+    if (Array.isArray(value)) {
+      return value.filter(
+        (item): item is string =>
+          typeof item === 'string' && Boolean(item.trim()),
+      );
+    }
+
+    return typeof value === 'string'
+      ? value
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean)
       : [];
   }
 

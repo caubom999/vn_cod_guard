@@ -4,6 +4,8 @@ import type { DisplayMessageSectionProps } from '../../../types/cod-fee';
 export function DisplayMessageSection({
   message,
   setField,
+  error,
+  disabled,
 }: DisplayMessageSectionProps) {
   return (
     <Card>
@@ -13,7 +15,7 @@ export function DisplayMessageSection({
             Display message
           </Text>
           <Text as="p" tone="subdued">
-            Explain the surcharge before the customer completes the order.
+            Save the message used to explain this surcharge to customers.
           </Text>
         </BlockStack>
         <TextField
@@ -22,6 +24,8 @@ export function DisplayMessageSection({
           onChange={(value) => setField('displayMessage', value)}
           multiline={3}
           autoComplete="off"
+          error={error}
+          disabled={disabled}
         />
       </BlockStack>
     </Card>

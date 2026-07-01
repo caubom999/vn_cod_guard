@@ -4,6 +4,8 @@ import type { FeeConditionsSectionProps } from '../../../types/cod-fee';
 export function FeeConditionsSection({
   draft,
   setField,
+  minimumError,
+  disabled,
 }: FeeConditionsSectionProps) {
   return (
     <Card>
@@ -25,6 +27,8 @@ export function FeeConditionsSection({
           autoComplete="off"
           suffix="VND"
           placeholder="No minimum"
+          disabled={disabled || !draft.feeEnabled}
+          error={minimumError}
         />
         <TextField
           label="Province or city"
@@ -33,6 +37,7 @@ export function FeeConditionsSection({
           autoComplete="off"
           placeholder="All provinces and cities"
           helpText="Separate multiple locations with commas."
+          disabled={disabled || !draft.feeEnabled}
         />
         <TextField
           label="Exclude customer tags"
@@ -41,6 +46,7 @@ export function FeeConditionsSection({
           autoComplete="off"
           placeholder="vip, wholesale"
           helpText="Customers with any matching tag will not be charged."
+          disabled={disabled || !draft.feeEnabled}
         />
       </BlockStack>
     </Card>

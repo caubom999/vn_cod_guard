@@ -11,6 +11,9 @@ import { CodDashboardService } from './dashboard/cod-dashboard.service';
 import { CodDeliveryRuleController } from './delivery/cod-delivery-rule.controller';
 import { CodDeliveryRuleRepository } from './delivery/cod-delivery-rule.repository';
 import { CodDeliveryRuleService } from './delivery/cod-delivery-rule.service';
+import { CodFeeController } from './fee/cod-fee.controller';
+import { CodFeeRepository } from './fee/cod-fee.repository';
+import { CodFeeService } from './fee/cod-fee.service';
 import { MessageTemplateController } from './templates/message-template.controller';
 import { MessageTemplateRepository } from './templates/message-template.repository';
 import { MessageTemplateService } from './templates/message-template.service';
@@ -36,6 +39,7 @@ import { VerificationService } from './verification/verification.service';
     VerificationController,
     CodSettingsController,
     CodDeliveryRuleController,
+    CodFeeController,
     RiskController,
     CodDashboardController,
     MessageTemplateController,
@@ -59,6 +63,8 @@ import { VerificationService } from './verification/verification.service';
     CodSettingsRepository,
     CodDeliveryRuleService,
     CodDeliveryRuleRepository,
+    CodFeeService,
+    CodFeeRepository,
     VerificationService,
     VerificationRepository,
   ],

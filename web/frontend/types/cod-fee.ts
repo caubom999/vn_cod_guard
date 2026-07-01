@@ -5,12 +5,13 @@ export type CodFeeDraft = {
   codShippingMethodName: string;
   hideBelowOrderTotal: string;
   hideAboveOrderTotal: string;
+  feeEnabled: boolean;
   feeType: FeeType;
   feeAmount: string;
   minimumOrderAmount: string;
   provinces: string;
   excludedCustomerTags: string;
-  feeVariant: string;
+  lineItemTitle: string;
   displayMessage: string;
 };
 
@@ -36,19 +37,53 @@ export type FeeCalculationSectionProps = {
   setField: CodFeeFieldUpdater;
   onFeeTypeChange: (feeType: FeeType) => void;
   error?: string;
+  disabled?: boolean;
 };
 
 export type FeeConditionsSectionProps = {
   draft: CodFeeDraft;
   setField: CodFeeFieldUpdater;
+  minimumError?: string;
+  disabled?: boolean;
 };
 
 export type FeeProductSectionProps = {
-  feeVariant: string;
+  lineItemTitle: string;
   setField: CodFeeFieldUpdater;
+  error?: string;
+  disabled?: boolean;
 };
 
 export type DisplayMessageSectionProps = {
   message: string;
   setField: CodFeeFieldUpdater;
+  error?: string;
+  disabled?: boolean;
+};
+
+export type CodFeeSetting = {
+  id: number;
+  shopId: number;
+  enabled: boolean;
+  feeType: FeeType;
+  feeAmount: number;
+  minimumOrderAmount: number | null;
+  provinces: string[];
+  excludedCustomerTags: string[];
+  lineItemTitle: string;
+  displayMessage: string;
+  updatedAt: string;
+};
+
+export type UpdateCodFeeSetting = Omit<
+  CodFeeSetting,
+  'id' | 'shopId' | 'updatedAt'
+>;
+
+export type CodFeeSaveBarProps = {
+  isDirty: boolean;
+  isValid: boolean;
+  isSaving: boolean;
+  isSaved: boolean;
+  onSave: () => void;
 };

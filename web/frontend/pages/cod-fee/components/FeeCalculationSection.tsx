@@ -16,14 +16,18 @@ export function FeeCalculationSection({
   setField,
   onFeeTypeChange,
   error,
+  disabled,
 }: FeeCalculationSectionProps) {
   return (
     <Card>
       <BlockStack gap="400">
         <BlockStack gap="100">
-          <Text as="h2" variant="headingMd">
-            Fee calculation
-          </Text>
+          <Checkbox
+            label="Enable COD fee"
+            checked={draft.feeEnabled}
+            onChange={(value) => setField('feeEnabled', value)}
+            disabled={disabled}
+          />
           <Text as="p" tone="subdued">
             Choose how much customers pay for COD.
           </Text>
@@ -36,6 +40,7 @@ export function FeeCalculationSection({
           ]}
           value={draft.feeType}
           onChange={(value) => onFeeTypeChange(value as FeeType)}
+          disabled={disabled || !draft.feeEnabled}
         />
         <TextField
           label={draft.feeType === 'fixed' ? 'Fee amount' : 'Fee rate'}
@@ -46,6 +51,7 @@ export function FeeCalculationSection({
           autoComplete="off"
           suffix={draft.feeType === 'fixed' ? 'VND' : '%'}
           error={error}
+          disabled={disabled || !draft.feeEnabled}
         />
         <Checkbox
           label="Apply only when the payment method is COD"

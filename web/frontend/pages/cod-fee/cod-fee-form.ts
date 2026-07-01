@@ -5,12 +5,13 @@ export const initialCodFeeDraft: CodFeeDraft = {
   codShippingMethodName: 'Standard - Cash on Delivery',
   hideBelowOrderTotal: '',
   hideAboveOrderTotal: '',
+  feeEnabled: false,
   feeType: 'fixed',
   feeAmount: '20000',
   minimumOrderAmount: '',
   provinces: '',
   excludedCustomerTags: '',
-  feeVariant: '',
+  lineItemTitle: 'COD fee',
   displayMessage: 'COD fee will be added for cash on delivery orders.',
 };
 
@@ -26,6 +27,39 @@ export function getFeeAmountError(draft: CodFeeDraft) {
   }
 
   return undefined;
+}
+
+export function getCodFeeValidation(draft: CodFeeDraft) {
+  const feeAmountError = getFeeAmountError(draft);
+  const minimum = Number(draft.minimumOrderAmount);
+  const minimumError =
+    draft.minimumOrderAmount !== '' &&
+    (!Number.isFinite(minimum) || minimum < 0)
+      ? 'Enter a valid minimum order total.'
+      : undefined;
+  const lineItemTitleError = !draft.lineItemTitle.trim()
+    ? 'Enter a fee line item title.'
+    : draft.lineItemTitle.trim().length > 255
+      ? 'Use 255 characters or fewer.'
+      : undefined;
+  const displayMessageError = !draft.displayMessage.trim()
+    ? 'Enter a customer-facing message.'
+    : draft.displayMessage.trim().length > 1000
+      ? 'Use 1,000 characters or fewer.'
+      : undefined;
+
+  return {
+    feeAmountError,
+    minimumError,
+    lineItemTitleError,
+    displayMessageError,
+    isValid: !(
+      feeAmountError ||
+      minimumError ||
+      lineItemTitleError ||
+      displayMessageError
+    ),
+  };
 }
 
 export function getShippingRuleValidation(draft: CodFeeDraft) {
