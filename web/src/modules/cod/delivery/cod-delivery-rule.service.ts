@@ -130,11 +130,6 @@ export class CodDeliveryRuleService {
       current.hideAboveOrderTotal,
       'hideAboveOrderTotal',
     );
-    const advancedRules = this.validateAdvancedRules(
-      dto.advancedRules,
-      this.getAdvancedRules(current.advancedRulesJson),
-    );
-
     if (!shippingMethodName || shippingMethodName.length > 255) {
       throw new BadRequestException(
         'Shipping method name is required and must be 255 characters or fewer',
@@ -154,8 +149,7 @@ export class CodDeliveryRuleService {
     if (
       enabled &&
       hideBelowOrderTotal === null &&
-      hideAboveOrderTotal === null &&
-      !this.hasAdvancedRule(advancedRules)
+      hideAboveOrderTotal === null
     ) {
       throw new BadRequestException(
         'Configure at least one condition before enabling the rule',
@@ -173,7 +167,6 @@ export class CodDeliveryRuleService {
         hideAboveOrderTotal === null
           ? null
           : new Prisma.Decimal(hideAboveOrderTotal),
-      advancedRulesJson: advancedRules as unknown as Prisma.InputJsonValue,
     };
   }
 
@@ -290,24 +283,17 @@ export class CodDeliveryRuleService {
       shippingMethodName: string;
       hideBelowOrderTotal: Prisma.Decimal | null;
       hideAboveOrderTotal: Prisma.Decimal | null;
-      advancedRulesJson: Prisma.InputJsonValue;
     },
   ) {
     if (!rule.enabled && !current.shopifyDeliveryCustomizationId) {
       return {};
     }
 
-    const advancedRules = this.getAdvancedRules(rule.advancedRulesJson);
     const configurationValue = JSON.stringify({
       enabled: rule.enabled,
       shippingMethodName: rule.shippingMethodName,
       hideBelowOrderTotal: rule.hideBelowOrderTotal?.toNumber() ?? null,
       hideAboveOrderTotal: rule.hideAboveOrderTotal?.toNumber() ?? null,
-      advancedRules,
-      hideCustomerTags: advancedRules.hideCustomerTags,
-      requireCustomerTags: advancedRules.requireCustomerTags,
-      hideCollectionIds: advancedRules.hideCollectionIds,
-      requireCollectionIds: advancedRules.requireCollectionIds,
     });
     const createMetafield = {
       namespace: METAFIELD_NAMESPACE,

@@ -1,8 +1,21 @@
-query CartPaymentMethodsTransformRunInput {
+query CartPaymentMethodsTransformRunInput(
+  $hideCustomerTags: [String!] = []
+  $requireCustomerTags: [String!] = []
+  $hideCollectionIds: [ID!] = []
+  $requireCollectionIds: [ID!] = []
+) {
   cart {
     cost {
       totalAmount {
         amount
+      }
+    }
+    buyerIdentity {
+      email
+      phone
+      customer {
+        hideTagMatch: hasAnyTag(tags: $hideCustomerTags)
+        requireTagMatch: hasAnyTag(tags: $requireCustomerTags)
       }
     }
     lines {
@@ -10,6 +23,29 @@ query CartPaymentMethodsTransformRunInput {
         discountedAmount {
           amount
         }
+      }
+      merchandise {
+        ... on ProductVariant {
+          product {
+            id
+            vendor
+            isGiftCard
+            hideCollectionMatch: inAnyCollection(ids: $hideCollectionIds)
+            requireCollectionMatch: inAnyCollection(ids: $requireCollectionIds)
+          }
+        }
+      }
+    }
+    deliveryGroups {
+      deliveryAddress {
+        countryCode
+        provinceCode
+        zip
+      }
+      selectedDeliveryOption {
+        title
+        code
+        deliveryMethodType
       }
     }
   }

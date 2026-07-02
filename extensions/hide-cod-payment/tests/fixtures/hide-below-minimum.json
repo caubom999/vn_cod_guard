@@ -9,7 +9,9 @@
             "amount": "50000"
           }
         },
-        "lines": []
+        "buyerIdentity": null,
+        "lines": [],
+        "deliveryGroups": []
       },
       "paymentMethods": [
         {

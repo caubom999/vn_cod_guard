@@ -74,6 +74,8 @@ model CodPaymentRule {
   paymentMethodName             String   @default("Cash on Delivery (COD)") @db.VarChar(255)
   hideBelowOrderTotal           Decimal? @db.Decimal(14, 2)
   hideAboveOrderTotal           Decimal? @db.Decimal(14, 2)
+  advancedRulesJson             Json?
+  configurationVersion          Int      @default(1)
   shopifyPaymentCustomizationId String?  @db.VarChar(128)
   shopifyMetafieldId            String?  @db.VarChar(128)
   createdAt                     DateTime @default(now())

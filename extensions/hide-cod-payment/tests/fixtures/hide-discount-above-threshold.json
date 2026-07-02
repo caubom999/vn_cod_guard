@@ -9,6 +9,7 @@
             "amount": "165000"
           }
         },
+        "buyerIdentity": null,
         "lines": [
           {
             "discountAllocations": [
@@ -17,9 +18,19 @@
                   "amount": "50000"
                 }
               }
-            ]
+            ],
+            "merchandise": {
+              "product": {
+                "id": "gid://shopify/Product/1",
+                "vendor": "Vendor",
+                "isGiftCard": false,
+                "hideCollectionMatch": false,
+                "requireCollectionMatch": false
+              }
+            }
           }
-        ]
+        ],
+        "deliveryGroups": []
       },
       "paymentMethods": [
         {

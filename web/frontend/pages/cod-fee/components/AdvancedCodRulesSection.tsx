@@ -10,15 +10,15 @@ import {
 import { useState } from 'react';
 import type {
   AdvancedCodRulesSectionProps,
-  CodDeliveryAdvancedRuleDraft,
+  CodPaymentAdvancedRuleDraft,
 } from '../../../types/cod-fee';
 import { HideCodPaymentMethodSection } from './HideCodPaymentMethodSection';
 
 type ListRuleKey = {
-  [K in keyof CodDeliveryAdvancedRuleDraft]: CodDeliveryAdvancedRuleDraft[K] extends string
+  [K in keyof CodPaymentAdvancedRuleDraft]: CodPaymentAdvancedRuleDraft[K] extends string
     ? K
     : never;
-}[keyof CodDeliveryAdvancedRuleDraft];
+}[keyof CodPaymentAdvancedRuleDraft];
 
 type ListRuleProps = {
   ruleKey: ListRuleKey;

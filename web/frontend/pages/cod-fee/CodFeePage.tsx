@@ -15,13 +15,13 @@ import {
   useUpdateCodPaymentRule,
 } from '../../hook/cod-payment-rule';
 import type {
-  CodDeliveryAdvancedRuleDraft,
-  CodDeliveryAdvancedRuleUpdater,
-  CodDeliveryAdvancedRules,
   CodFeeDraft,
   CodFeeFieldUpdater,
   CodFeeSetting,
   CodPaymentRule,
+  CodPaymentAdvancedRuleDraft,
+  CodPaymentAdvancedRuleUpdater,
+  CodPaymentAdvancedRules,
   CodPaymentRuleDraft,
   FeeType,
 } from '../../types/cod-fee';
@@ -70,8 +70,9 @@ function CodFeePage() {
   const paymentRuleDirty = useMemo(
     () =>
       paymentRule.data
-        ? JSON.stringify(toPaymentRuleInput(paymentDraft)) !==
-          JSON.stringify(toPaymentRuleInput(paymentRule.data))
+        ? needsAdvancedRuleSync(paymentRule.data) ||
+          JSON.stringify(toPaymentRuleInput(paymentDraft)) !==
+            JSON.stringify(toPaymentRuleInput(paymentRule.data))
         : false,
     [paymentDraft, paymentRule.data],
   );
@@ -87,9 +88,6 @@ function CodFeePage() {
       codShippingMethodName: deliveryRule.data.shippingMethodName,
       hideBelowOrderTotal: amountToText(deliveryRule.data.hideBelowOrderTotal),
       hideAboveOrderTotal: amountToText(deliveryRule.data.hideAboveOrderTotal),
-      advancedDeliveryRules: toAdvancedRuleDraft(
-        deliveryRule.data.advancedRules,
-      ),
     }));
   }, [deliveryRule.data]);
 
@@ -105,6 +103,7 @@ function CodFeePage() {
       paymentMethodName: paymentRule.data.paymentMethodName,
       hideBelowOrderTotal: amountToText(paymentRule.data.hideBelowOrderTotal),
       hideAboveOrderTotal: amountToText(paymentRule.data.hideAboveOrderTotal),
+      advancedRules: toAdvancedRuleDraft(paymentRule.data.advancedRules),
     });
   }, [paymentRule.data]);
 
@@ -130,11 +129,11 @@ function CodFeePage() {
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
-  const setAdvancedRule: CodDeliveryAdvancedRuleUpdater = (key, value) => {
-    setDraft((current) => ({
+  const setAdvancedRule: CodPaymentAdvancedRuleUpdater = (key, value) => {
+    setPaymentDraft((current) => ({
       ...current,
-      advancedDeliveryRules: {
-        ...current.advancedDeliveryRules,
+      advancedRules: {
+        ...current.advancedRules,
         [key]: value,
       },
     }));
@@ -167,9 +166,6 @@ function CodFeePage() {
       codShippingMethodName: deliveryRule.data.shippingMethodName,
       hideBelowOrderTotal: amountToText(deliveryRule.data.hideBelowOrderTotal),
       hideAboveOrderTotal: amountToText(deliveryRule.data.hideAboveOrderTotal),
-      advancedDeliveryRules: toAdvancedRuleDraft(
-        deliveryRule.data.advancedRules,
-      ),
     }));
   };
 
@@ -219,6 +215,7 @@ function CodFeePage() {
       paymentMethodName: paymentRule.data.paymentMethodName,
       hideBelowOrderTotal: amountToText(paymentRule.data.hideBelowOrderTotal),
       hideAboveOrderTotal: amountToText(paymentRule.data.hideAboveOrderTotal),
+      advancedRules: toAdvancedRuleDraft(paymentRule.data.advancedRules),
     });
   };
 
@@ -271,9 +268,9 @@ function CodFeePage() {
       />
 
       <AdvancedCodRulesSection
-        rules={draft.advancedDeliveryRules}
+        rules={paymentDraft.advancedRules}
         setRule={setAdvancedRule}
-        disabled={deliveryRule.isLoading || updateDeliveryRule.isPending}
+        disabled={paymentRule.isLoading || updatePaymentRule.isPending}
         paymentRule={{
           draft: paymentDraft,
           setDraft: setPaymentDraft,
@@ -329,6 +326,7 @@ function toPaymentRuleInput(rule: CodPaymentRuleDraft | CodPaymentRule) {
         rule.hideAboveOrderTotal === ''
           ? null
           : Number(rule.hideAboveOrderTotal),
+      advancedRules: toAdvancedRules(rule.advancedRules),
     };
   }
 
@@ -339,6 +337,7 @@ function toPaymentRuleInput(rule: CodPaymentRuleDraft | CodPaymentRule) {
     paymentMethodName: rule.paymentMethodName,
     hideBelowOrderTotal: rule.hideBelowOrderTotal,
     hideAboveOrderTotal: rule.hideAboveOrderTotal,
+    advancedRules: rule.advancedRules,
   };
 }
 
@@ -386,6 +385,15 @@ function amountToText(value: number | null) {
   return value === null ? '' : String(value);
 }
 
+function needsAdvancedRuleSync(rule: CodPaymentRule) {
+  return (
+    rule.configurationVersion < 2 &&
+    Object.values(rule.advancedRules).some(
+      (value) => value === true || (Array.isArray(value) && value.length > 0),
+    )
+  );
+}
+
 function toDeliveryRuleInput(rule: CodFeeDraft | CodDeliveryRule) {
   if ('hideCodShippingMethod' in rule) {
     return {
@@ -399,7 +407,6 @@ function toDeliveryRuleInput(rule: CodFeeDraft | CodDeliveryRule) {
         rule.hideAboveOrderTotal === ''
           ? null
           : Number(rule.hideAboveOrderTotal),
-      advancedRules: toAdvancedRules(rule.advancedDeliveryRules),
     };
   }
 
@@ -408,13 +415,12 @@ function toDeliveryRuleInput(rule: CodFeeDraft | CodDeliveryRule) {
     shippingMethodName: rule.shippingMethodName,
     hideBelowOrderTotal: rule.hideBelowOrderTotal,
     hideAboveOrderTotal: rule.hideAboveOrderTotal,
-    advancedRules: rule.advancedRules,
   };
 }
 
 function toAdvancedRuleDraft(
-  rules: CodDeliveryAdvancedRules,
-): CodDeliveryAdvancedRuleDraft {
+  rules: CodPaymentAdvancedRules,
+): CodPaymentAdvancedRuleDraft {
   return {
     hideCustomerTags: rules.hideCustomerTags.join(', '),
     requireCustomerTags: rules.requireCustomerTags.join(', '),
@@ -442,8 +448,8 @@ function toAdvancedRuleDraft(
 }
 
 function toAdvancedRules(
-  rules: CodDeliveryAdvancedRuleDraft,
-): CodDeliveryAdvancedRules {
+  rules: CodPaymentAdvancedRuleDraft,
+): CodPaymentAdvancedRules {
   return {
     hideCustomerTags: splitList(rules.hideCustomerTags),
     requireCustomerTags: splitList(rules.requireCustomerTags),

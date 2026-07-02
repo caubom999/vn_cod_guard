@@ -120,22 +120,18 @@ export function HideCodPaymentMethodSection({
         </Box>
       </Collapsible>
 
-      {draft.hideByOrderTotal || draft.hideDiscountedOrders ? (
-        <>
-          <Divider />
-          <TextField
-            label="Payment method name"
-            value={draft.paymentMethodName}
-            onChange={(value) => update('paymentMethodName', value)}
-            autoComplete="off"
-            helpText="Enter the exact name shown in the Payment section at checkout."
-            error={nameError}
-          />
-          <Text as="p" tone="subdued">
-            These rules target the payment method, not the COD shipping rate.
-          </Text>
-        </>
-      ) : null}
+      <Divider />
+      <TextField
+        label="Payment method name"
+        value={draft.paymentMethodName}
+        onChange={(value) => update('paymentMethodName', value)}
+        autoComplete="off"
+        helpText="All conditions below hide or show this exact payment method name at checkout."
+        error={nameError}
+      />
+      <Text as="p" tone="subdued">
+        These rules target the payment method, not the COD shipping rate.
+      </Text>
     </BlockStack>
   );
 }

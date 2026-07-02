@@ -16,10 +16,6 @@ description = "t:description"
   command = ""
   path = "dist/function.wasm"
 
-  [extensions.input.variables]
-  namespace = "$app:hide-cod-delivery"
-  key = "function-configuration"
-
   [extensions.ui.paths]
   create = "/"
   details = "/"

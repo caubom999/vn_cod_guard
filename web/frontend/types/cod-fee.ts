@@ -12,6 +12,8 @@ export type CodPaymentRule = {
   paymentMethodName: string;
   hideBelowOrderTotal: number | null;
   hideAboveOrderTotal: number | null;
+  advancedRules: CodPaymentAdvancedRules;
+  configurationVersion: number;
   shopifyConfigured: boolean;
   updatedAt: string;
 };
@@ -24,6 +26,7 @@ export type UpdateCodPaymentRule = Pick<
   | 'paymentMethodName'
   | 'hideBelowOrderTotal'
   | 'hideAboveOrderTotal'
+  | 'advancedRules'
 >;
 
 export type CodPaymentRuleDraft = {
@@ -33,6 +36,7 @@ export type CodPaymentRuleDraft = {
   paymentMethodName: string;
   hideBelowOrderTotal: string;
   hideAboveOrderTotal: string;
+  advancedRules: CodPaymentAdvancedRuleDraft;
 };
 
 export type HideCodPaymentMethodSectionProps = {
@@ -44,7 +48,7 @@ export type HideCodPaymentMethodSectionProps = {
   isLoading: boolean;
 };
 
-export type CodDeliveryAdvancedRules = {
+export type CodPaymentAdvancedRules = {
   hideCustomerTags: string[];
   requireCustomerTags: string[];
   hideCustomerEmails: string[];
@@ -69,8 +73,8 @@ export type CodDeliveryAdvancedRules = {
   requireLocalDelivery: boolean;
 };
 
-export type CodDeliveryAdvancedRuleDraft = {
-  [K in keyof CodDeliveryAdvancedRules]: CodDeliveryAdvancedRules[K] extends boolean
+export type CodPaymentAdvancedRuleDraft = {
+  [K in keyof CodPaymentAdvancedRules]: CodPaymentAdvancedRules[K] extends boolean
     ? boolean
     : string;
 };
@@ -80,7 +84,6 @@ export type CodFeeDraft = {
   codShippingMethodName: string;
   hideBelowOrderTotal: string;
   hideAboveOrderTotal: string;
-  advancedDeliveryRules: CodDeliveryAdvancedRuleDraft;
   feeEnabled: boolean;
   feeType: FeeType;
   feeAmount: string;
@@ -104,16 +107,16 @@ export type HideCodShippingMethodSectionProps = {
   isLoading: boolean;
 };
 
-export type CodDeliveryAdvancedRuleUpdater = <
-  K extends keyof CodDeliveryAdvancedRuleDraft,
+export type CodPaymentAdvancedRuleUpdater = <
+  K extends keyof CodPaymentAdvancedRuleDraft,
 >(
   key: K,
-  value: CodDeliveryAdvancedRuleDraft[K],
+  value: CodPaymentAdvancedRuleDraft[K],
 ) => void;
 
 export type AdvancedCodRulesSectionProps = {
-  rules: CodDeliveryAdvancedRuleDraft;
-  setRule: CodDeliveryAdvancedRuleUpdater;
+  rules: CodPaymentAdvancedRuleDraft;
+  setRule: CodPaymentAdvancedRuleUpdater;
   disabled: boolean;
   paymentRule: HideCodPaymentMethodSectionProps;
 };
