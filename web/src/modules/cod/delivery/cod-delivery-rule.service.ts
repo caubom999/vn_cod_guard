@@ -12,11 +12,64 @@ const FUNCTION_HANDLE = 'hide-cod-delivery';
 const METAFIELD_NAMESPACE = '$app:hide-cod-delivery';
 const METAFIELD_KEY = 'function-configuration';
 
+export type CodDeliveryAdvancedRules = {
+  hideDiscountedOrders: boolean;
+  hideCustomerTags: string[];
+  requireCustomerTags: string[];
+  hideCustomerEmails: string[];
+  hideCustomerPhones: string[];
+  hideCountries: string[];
+  requireCountries: string[];
+  hideProvinces: string[];
+  requireProvinces: string[];
+  hidePostalCodes: string[];
+  requirePostalCodes: string[];
+  hideProductIds: string[];
+  hideGiftCards: boolean;
+  hideCollectionIds: string[];
+  requireCollectionIds: string[];
+  hideProductVendors: string[];
+  requireProductVendors: string[];
+  hideShippingRates: string[];
+  requireShippingRates: string[];
+  hideLocalPickup: boolean;
+  requireLocalPickup: boolean;
+  hideLocalDelivery: boolean;
+  requireLocalDelivery: boolean;
+};
+
+const DEFAULT_ADVANCED_RULES: CodDeliveryAdvancedRules = {
+  hideDiscountedOrders: false,
+  hideCustomerTags: [],
+  requireCustomerTags: [],
+  hideCustomerEmails: [],
+  hideCustomerPhones: [],
+  hideCountries: [],
+  requireCountries: [],
+  hideProvinces: [],
+  requireProvinces: [],
+  hidePostalCodes: [],
+  requirePostalCodes: [],
+  hideProductIds: [],
+  hideGiftCards: false,
+  hideCollectionIds: [],
+  requireCollectionIds: [],
+  hideProductVendors: [],
+  requireProductVendors: [],
+  hideShippingRates: [],
+  requireShippingRates: [],
+  hideLocalPickup: false,
+  requireLocalPickup: false,
+  hideLocalDelivery: false,
+  requireLocalDelivery: false,
+};
+
 export type UpdateCodDeliveryRuleDto = {
   enabled?: boolean;
   shippingMethodName?: string;
   hideBelowOrderTotal?: number | null;
   hideAboveOrderTotal?: number | null;
+  advancedRules?: Partial<CodDeliveryAdvancedRules>;
 };
 
 type DeliveryCustomizationPayload = {
@@ -79,6 +132,10 @@ export class CodDeliveryRuleService {
       current.hideAboveOrderTotal,
       'hideAboveOrderTotal',
     );
+    const advancedRules = this.validateAdvancedRules(
+      dto.advancedRules,
+      this.getAdvancedRules(current.advancedRulesJson),
+    );
 
     if (!shippingMethodName || shippingMethodName.length > 255) {
       throw new BadRequestException(
@@ -99,10 +156,11 @@ export class CodDeliveryRuleService {
     if (
       enabled &&
       hideBelowOrderTotal === null &&
-      hideAboveOrderTotal === null
+      hideAboveOrderTotal === null &&
+      !this.hasAdvancedRule(advancedRules)
     ) {
       throw new BadRequestException(
-        'Enter at least one order total limit before enabling the rule',
+        'Configure at least one condition before enabling the rule',
       );
     }
 
@@ -117,7 +175,94 @@ export class CodDeliveryRuleService {
         hideAboveOrderTotal === null
           ? null
           : new Prisma.Decimal(hideAboveOrderTotal),
+      advancedRulesJson: advancedRules as unknown as Prisma.InputJsonValue,
     };
+  }
+
+  private validateAdvancedRules(
+    value: Partial<CodDeliveryAdvancedRules> | undefined,
+    current: CodDeliveryAdvancedRules,
+  ): CodDeliveryAdvancedRules {
+    const source = value || current;
+    const booleanKeys = [
+      'hideDiscountedOrders',
+      'hideGiftCards',
+      'hideLocalPickup',
+      'requireLocalPickup',
+      'hideLocalDelivery',
+      'requireLocalDelivery',
+    ] as const;
+    const listKeys = [
+      'hideCustomerTags',
+      'requireCustomerTags',
+      'hideCustomerEmails',
+      'hideCustomerPhones',
+      'hideCountries',
+      'requireCountries',
+      'hideProvinces',
+      'requireProvinces',
+      'hidePostalCodes',
+      'requirePostalCodes',
+      'hideProductIds',
+      'hideCollectionIds',
+      'requireCollectionIds',
+      'hideProductVendors',
+      'requireProductVendors',
+      'hideShippingRates',
+      'requireShippingRates',
+    ] as const;
+    const result = { ...DEFAULT_ADVANCED_RULES };
+
+    for (const key of booleanKeys) {
+      result[key] =
+        typeof source[key] === 'boolean' ? source[key] : current[key];
+    }
+
+    for (const key of listKeys) {
+      const list = source[key];
+
+      if (!Array.isArray(list)) {
+        result[key] = current[key];
+        continue;
+      }
+
+      const cleaned = [
+        ...new Set(
+          list
+            .filter((item): item is string => typeof item === 'string')
+            .map((item) => item.trim())
+            .filter(Boolean),
+        ),
+      ];
+
+      if (cleaned.length > 100 || cleaned.some((item) => item.length > 255)) {
+        throw new BadRequestException(
+          `${key} supports up to 100 values of 255 characters each`,
+        );
+      }
+
+      if (
+        (key === 'hideCollectionIds' || key === 'requireCollectionIds') &&
+        cleaned.some((item) => !/^gid:\/\/shopify\/Collection\/\d+$/.test(item))
+      ) {
+        throw new BadRequestException(
+          `${key} values must be Shopify collection GIDs`,
+        );
+      }
+
+      if (
+        key === 'hideProductIds' &&
+        cleaned.some((item) => !/^gid:\/\/shopify\/Product\/\d+$/.test(item))
+      ) {
+        throw new BadRequestException(
+          'hideProductIds values must be Shopify product GIDs',
+        );
+      }
+
+      result[key] = cleaned;
+    }
+
+    return result;
   }
 
   private amountOrNull(
@@ -148,17 +293,24 @@ export class CodDeliveryRuleService {
       shippingMethodName: string;
       hideBelowOrderTotal: Prisma.Decimal | null;
       hideAboveOrderTotal: Prisma.Decimal | null;
+      advancedRulesJson: Prisma.InputJsonValue;
     },
   ) {
     if (!rule.enabled && !current.shopifyDeliveryCustomizationId) {
       return {};
     }
 
+    const advancedRules = this.getAdvancedRules(rule.advancedRulesJson);
     const configurationValue = JSON.stringify({
       enabled: rule.enabled,
       shippingMethodName: rule.shippingMethodName,
       hideBelowOrderTotal: rule.hideBelowOrderTotal?.toNumber() ?? null,
       hideAboveOrderTotal: rule.hideAboveOrderTotal?.toNumber() ?? null,
+      advancedRules,
+      hideCustomerTags: advancedRules.hideCustomerTags,
+      requireCustomerTags: advancedRules.requireCustomerTags,
+      hideCollectionIds: advancedRules.hideCollectionIds,
+      requireCollectionIds: advancedRules.requireCollectionIds,
     });
     const createMetafield = {
       namespace: METAFIELD_NAMESPACE,
@@ -333,8 +485,28 @@ export class CodDeliveryRuleService {
       shippingMethodName: rule.shippingMethodName,
       hideBelowOrderTotal: rule.hideBelowOrderTotal?.toNumber() ?? null,
       hideAboveOrderTotal: rule.hideAboveOrderTotal?.toNumber() ?? null,
+      advancedRules: this.getAdvancedRules(rule.advancedRulesJson),
       shopifyConfigured: Boolean(rule.shopifyDeliveryCustomizationId),
       updatedAt: rule.updatedAt,
     };
+  }
+
+  private getAdvancedRules(
+    value: Prisma.JsonValue | Prisma.InputJsonValue | null,
+  ): CodDeliveryAdvancedRules {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return { ...DEFAULT_ADVANCED_RULES };
+    }
+
+    return this.validateAdvancedRules(
+      value as Partial<CodDeliveryAdvancedRules>,
+      DEFAULT_ADVANCED_RULES,
+    );
+  }
+
+  private hasAdvancedRule(rules: CodDeliveryAdvancedRules) {
+    return Object.values(rules).some(
+      (value) => value === true || (Array.isArray(value) && value.length > 0),
+    );
   }
 }

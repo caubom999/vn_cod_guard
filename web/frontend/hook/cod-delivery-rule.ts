@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CodDeliveryAdvancedRules } from '../types/cod-fee';
 import { useApi } from './api';
 
 export type CodDeliveryRule = {
@@ -8,6 +9,7 @@ export type CodDeliveryRule = {
   shippingMethodName: string;
   hideBelowOrderTotal: number | null;
   hideAboveOrderTotal: number | null;
+  advancedRules: CodDeliveryAdvancedRules;
   shopifyConfigured: boolean;
   updatedAt: string;
 };
@@ -18,6 +20,7 @@ export type UpdateCodDeliveryRule = Pick<
   | 'shippingMethodName'
   | 'hideBelowOrderTotal'
   | 'hideAboveOrderTotal'
+  | 'advancedRules'
 >;
 
 export function useCodDeliveryRule() {

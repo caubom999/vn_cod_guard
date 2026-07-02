@@ -6,7 +6,7 @@ export default registerAs('shopify', () => ({
   apiVersion: process.env.SHOPIFY_API_VERSION || '2026-04',
   scopes: (
     process.env.SHOPIFY_SCOPES ||
-    'read_products,read_orders,write_orders,read_order_edits,write_order_edits,read_delivery_customizations,write_delivery_customizations'
+    'read_products,read_orders,write_orders,read_order_edits,write_order_edits,read_delivery_customizations,write_delivery_customizations,read_payment_customizations,write_payment_customizations'
   )
     .replace(/\s/g, '')
     .split(',')

@@ -40,6 +40,7 @@ model Shop {
   billingSubscription ShopBillingSubscription?
   billingEvents       ShopBillingEvent[]
   codDeliveryRule     CodDeliveryRule?
+  codPaymentRule      CodPaymentRule?
   codFeeSetting       CodFeeSetting?
 
   @@map("shops")
@@ -52,6 +53,7 @@ model CodDeliveryRule {
   shippingMethodName             String   @default("Standard - Cash on Delivery") @db.VarChar(255)
   hideBelowOrderTotal            Decimal? @db.Decimal(14, 2)
   hideAboveOrderTotal            Decimal? @db.Decimal(14, 2)
+  advancedRulesJson              Json?
   shopifyDeliveryCustomizationId String?  @db.VarChar(128)
   shopifyMetafieldId             String?  @db.VarChar(128)
   createdAt                      DateTime @default(now())
@@ -60,6 +62,23 @@ model CodDeliveryRule {
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@map("cod_delivery_rules")
+}
+
+model CodPaymentRule {
+  id                            Int      @id @default(autoincrement())
+  shopId                        Int      @unique
+  enabled                       Boolean  @default(false)
+  paymentMethodName             String   @default("Cash on Delivery (COD)") @db.VarChar(255)
+  hideBelowOrderTotal           Decimal? @db.Decimal(14, 2)
+  hideAboveOrderTotal           Decimal? @db.Decimal(14, 2)
+  shopifyPaymentCustomizationId String?  @db.VarChar(128)
+  shopifyMetafieldId            String?  @db.VarChar(128)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@map("cod_payment_rules")
 }
 
 enum CodFeeType {

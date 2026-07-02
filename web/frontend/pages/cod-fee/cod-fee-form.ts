@@ -1,10 +1,44 @@
-import type { CodFeeDraft } from '../../types/cod-fee';
+import type { CodFeeDraft, CodPaymentRuleDraft } from '../../types/cod-fee';
+
+export const initialCodPaymentRuleDraft: CodPaymentRuleDraft = {
+  enabled: false,
+  paymentMethodName: 'Cash on Delivery (COD)',
+  hideBelowOrderTotal: '',
+  hideAboveOrderTotal: '',
+};
+
+export const initialAdvancedDeliveryRules = {
+  hideDiscountedOrders: false,
+  hideCustomerTags: '',
+  requireCustomerTags: '',
+  hideCustomerEmails: '',
+  hideCustomerPhones: '',
+  hideCountries: '',
+  requireCountries: '',
+  hideProvinces: '',
+  requireProvinces: '',
+  hidePostalCodes: '',
+  requirePostalCodes: '',
+  hideProductIds: '',
+  hideGiftCards: false,
+  hideCollectionIds: '',
+  requireCollectionIds: '',
+  hideProductVendors: '',
+  requireProductVendors: '',
+  hideShippingRates: '',
+  requireShippingRates: '',
+  hideLocalPickup: false,
+  requireLocalPickup: false,
+  hideLocalDelivery: false,
+  requireLocalDelivery: false,
+} as const;
 
 export const initialCodFeeDraft: CodFeeDraft = {
   hideCodShippingMethod: false,
   codShippingMethodName: 'Standard - Cash on Delivery',
   hideBelowOrderTotal: '',
   hideAboveOrderTotal: '',
+  advancedDeliveryRules: { ...initialAdvancedDeliveryRules },
   feeEnabled: false,
   feeType: 'fixed',
   feeAmount: '20000',
@@ -68,6 +102,9 @@ export function getShippingRuleValidation(draft: CodFeeDraft) {
     draft.hideBelowOrderTotal !== '' && draft.hideAboveOrderTotal !== '';
   const hasAnyLimit =
     draft.hideBelowOrderTotal !== '' || draft.hideAboveOrderTotal !== '';
+  const hasAdvancedRule = Object.values(draft.advancedDeliveryRules).some(
+    (value) => value === true || (typeof value === 'string' && value.trim()),
+  );
   const nameError = !shippingMethodName
     ? 'Enter the shipping method name shown at checkout.'
     : undefined;
@@ -79,7 +116,35 @@ export function getShippingRuleValidation(draft: CodFeeDraft) {
     Number(draft.hideBelowOrderTotal) >= Number(draft.hideAboveOrderTotal)
   ) {
     limitError = 'The maximum order total must be greater than the minimum.';
-  } else if (draft.hideCodShippingMethod && !hasAnyLimit) {
+  } else if (draft.hideCodShippingMethod && !hasAnyLimit && !hasAdvancedRule) {
+    limitError = 'Configure at least one condition before enabling the rule.';
+  }
+
+  return {
+    nameError,
+    limitError,
+    isValid: !nameError && !limitError,
+  };
+}
+
+export function getPaymentRuleValidation(draft: CodPaymentRuleDraft) {
+  const paymentMethodName = draft.paymentMethodName.trim();
+  const hasAnyLimit =
+    draft.hideBelowOrderTotal !== '' || draft.hideAboveOrderTotal !== '';
+  const hasBothLimits =
+    draft.hideBelowOrderTotal !== '' && draft.hideAboveOrderTotal !== '';
+  const nameError = !paymentMethodName
+    ? 'Enter the payment method name shown at checkout.'
+    : undefined;
+  let limitError: string | undefined;
+
+  if (
+    draft.enabled &&
+    hasBothLimits &&
+    Number(draft.hideBelowOrderTotal) >= Number(draft.hideAboveOrderTotal)
+  ) {
+    limitError = 'The maximum order total must be greater than the minimum.';
+  } else if (draft.enabled && !hasAnyLimit) {
     limitError = 'Enter at least one order total limit.';
   }
 

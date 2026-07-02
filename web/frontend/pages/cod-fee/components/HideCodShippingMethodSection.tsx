@@ -1,7 +1,5 @@
 import {
   BlockStack,
-  Badge,
-  Button,
   Card,
   Checkbox,
   InlineGrid,
@@ -17,11 +15,7 @@ export function HideCodShippingMethodSection({
   setField,
   nameError,
   limitError,
-  isDirty,
   isLoading,
-  isSaving,
-  isSaved,
-  onSave,
 }: HideCodShippingMethodSectionProps) {
   return (
     <Card>
@@ -84,24 +78,10 @@ export function HideCodShippingMethodSection({
               />
             </InlineGrid>
 
-            <InlineStack align="space-between" blockAlign="center" gap="300">
-              <Text as="p" tone="subdued">
-                Leave either limit empty if you only need one condition.
-              </Text>
-              <InlineStack gap="300" blockAlign="center">
-                {isSaved && !isDirty ? (
-                  <Badge tone="success">Saved to Shopify</Badge>
-                ) : null}
-                <Button
-                  variant="primary"
-                  disabled={!isDirty || Boolean(nameError || limitError)}
-                  loading={isSaving}
-                  onClick={onSave}
-                >
-                  Save shipping rule
-                </Button>
-              </InlineStack>
-            </InlineStack>
+            <Text as="p" tone="subdued">
+              Leave both limits empty when you only want to use the advanced
+              conditions below.
+            </Text>
           </>
         )}
       </BlockStack>
