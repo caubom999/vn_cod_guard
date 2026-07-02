@@ -40,7 +40,6 @@ import { FeeCalculationSection } from './components/FeeCalculationSection';
 import { FeeConditionsSection } from './components/FeeConditionsSection';
 import { FeeProductSection } from './components/FeeProductSection';
 import { HideCodShippingMethodSection } from './components/HideCodShippingMethodSection';
-import { HideCodPaymentMethodSection } from './components/HideCodPaymentMethodSection';
 
 function CodFeePage() {
   const [draft, setDraft] = useState<CodFeeDraft>(initialCodFeeDraft);
@@ -159,6 +158,23 @@ function CodFeePage() {
     updateDeliveryRule.mutate(toDeliveryRuleInput(draft));
   };
 
+  const handleDeliveryRuleDiscard = () => {
+    if (!deliveryRule.data) {
+      return;
+    }
+
+    setDraft((current) => ({
+      ...current,
+      hideCodShippingMethod: deliveryRule.data.enabled,
+      codShippingMethodName: deliveryRule.data.shippingMethodName,
+      hideBelowOrderTotal: amountToText(deliveryRule.data.hideBelowOrderTotal),
+      hideAboveOrderTotal: amountToText(deliveryRule.data.hideAboveOrderTotal),
+      advancedDeliveryRules: toAdvancedRuleDraft(
+        deliveryRule.data.advancedRules,
+      ),
+    }));
+  };
+
   const handleCodFeeSave = () => {
     if (!feeValidation.isValid) {
       return;
@@ -173,6 +189,34 @@ function CodFeePage() {
     }
 
     updatePaymentRule.mutate(toPaymentRuleInput(paymentDraft));
+  };
+
+  const handlePaymentRuleDiscard = () => {
+    if (!paymentRule.data) {
+      return;
+    }
+
+    setPaymentDraft({
+      enabled: paymentRule.data.enabled,
+      paymentMethodName: paymentRule.data.paymentMethodName,
+      hideBelowOrderTotal: amountToText(paymentRule.data.hideBelowOrderTotal),
+      hideAboveOrderTotal: amountToText(paymentRule.data.hideAboveOrderTotal),
+    });
+  };
+
+  const handleVisibilityRulesSave = () => {
+    if (deliveryRuleDirty) {
+      handleDeliveryRuleSave();
+    }
+
+    if (paymentRuleDirty) {
+      handlePaymentRuleSave();
+    }
+  };
+
+  const handleVisibilityRulesDiscard = () => {
+    handleDeliveryRuleDiscard();
+    handlePaymentRuleDiscard();
   };
 
   return (
@@ -203,34 +247,28 @@ function CodFeePage() {
         isLoading={deliveryRule.isLoading}
       />
 
-      <HideCodPaymentMethodSection
-        draft={paymentDraft}
-        setDraft={setPaymentDraft}
-        nameError={paymentValidation.nameError}
-        limitError={paymentValidation.limitError}
-        isDirty={paymentRuleDirty}
-        isLoading={paymentRule.isLoading}
-        isSaving={updatePaymentRule.isPending}
-        isSaved={updatePaymentRule.isSuccess}
-        onSave={handlePaymentRuleSave}
-      />
-
       <AdvancedCodRulesSection
         rules={draft.advancedDeliveryRules}
         setRule={setAdvancedRule}
-        disabled={
-          deliveryRule.isLoading ||
-          updateDeliveryRule.isPending ||
-          !draft.hideCodShippingMethod
-        }
+        disabled={deliveryRule.isLoading || updateDeliveryRule.isPending}
+        paymentRule={{
+          draft: paymentDraft,
+          setDraft: setPaymentDraft,
+          nameError: paymentValidation.nameError,
+          limitError: paymentValidation.limitError,
+          isLoading: paymentRule.isLoading || updatePaymentRule.isPending,
+        }}
       />
 
       <CodDeliveryRuleSaveBar
-        isDirty={deliveryRuleDirty}
-        isValid={shippingValidation.isValid}
-        isSaving={updateDeliveryRule.isPending}
-        isSaved={updateDeliveryRule.isSuccess}
-        onSave={handleDeliveryRuleSave}
+        isDirty={deliveryRuleDirty || paymentRuleDirty}
+        isValid={
+          (!deliveryRuleDirty || shippingValidation.isValid) &&
+          (!paymentRuleDirty || paymentValidation.isValid)
+        }
+        isSaving={updateDeliveryRule.isPending || updatePaymentRule.isPending}
+        onSave={handleVisibilityRulesSave}
+        onDiscard={handleVisibilityRulesDiscard}
       />
 
       <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">

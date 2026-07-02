@@ -3,6 +3,7 @@ import {
   Card,
   Checkbox,
   Divider,
+  InlineGrid,
   Text,
   TextField,
 } from '@shopify/polaris';
@@ -11,6 +12,7 @@ import type {
   AdvancedCodRulesSectionProps,
   CodDeliveryAdvancedRuleDraft,
 } from '../../../types/cod-fee';
+import { HideCodPaymentMethodSection } from './HideCodPaymentMethodSection';
 
 type ListRuleKey = {
   [K in keyof CodDeliveryAdvancedRuleDraft]: CodDeliveryAdvancedRuleDraft[K] extends string
@@ -29,6 +31,7 @@ export function AdvancedCodRulesSection({
   rules,
   setRule,
   disabled,
+  paymentRule,
 }: AdvancedCodRulesSectionProps) {
   const [expanded, setExpanded] = useState<Set<ListRuleKey>>(new Set());
 
@@ -80,19 +83,24 @@ export function AdvancedCodRulesSection({
 
   return (
     <BlockStack gap="400">
-      <RuleCard
+      <RuleSection
         title="Limit cash on delivery by order"
-        description="Order total limits are configured in the section above."
+        description="Control COD availability using the order total and discounts."
       >
+        <HideCodPaymentMethodSection {...paymentRule} />
+        <Divider />
         <Checkbox
           label="Hide COD when the order has discounts"
           checked={rules.hideDiscountedOrders}
           onChange={(value) => setRule('hideDiscountedOrders', value)}
           disabled={disabled}
         />
-      </RuleCard>
+      </RuleSection>
 
-      <RuleCard title="Limit cash on delivery by customers">
+      <RuleSection
+        title="Limit cash on delivery by customers"
+        description="Control COD using customer tags, email addresses, and phone numbers."
+      >
         {listRule({
           ruleKey: 'hideCustomerTags',
           label: 'Hide COD if the customer has one or more tags',
@@ -116,9 +124,12 @@ export function AdvancedCodRulesSection({
           helpText:
             'Separate multiple phone numbers with commas. Formatting characters are ignored.',
         })}
-      </RuleCard>
+      </RuleSection>
 
-      <RuleCard title="Limit cash on delivery by location">
+      <RuleSection
+        title="Limit cash on delivery by location"
+        description="Control COD availability for countries, provinces, and postal codes."
+      >
         {listRule({
           ruleKey: 'hideCountries',
           label: 'Hide COD for one or more countries',
@@ -155,9 +166,12 @@ export function AdvancedCodRulesSection({
           label: 'Show COD only for specific postal codes',
           placeholder: '100000, 700000',
         })}
-      </RuleCard>
+      </RuleSection>
 
-      <RuleCard title="Limit cash on delivery by products">
+      <RuleSection
+        title="Limit cash on delivery by products"
+        description="Control COD using products, gift cards, collections, and vendors."
+      >
         {listRule({
           ruleKey: 'hideProductIds',
           label: 'Hide COD for one or more products',
@@ -194,9 +208,12 @@ export function AdvancedCodRulesSection({
           label: 'Show COD only for specific product vendors',
           placeholder: 'Vendor A, Vendor B',
         })}
-      </RuleCard>
+      </RuleSection>
 
-      <RuleCard title="Limit cash on delivery by shipping method">
+      <RuleSection
+        title="Limit cash on delivery by shipping method"
+        description="Control COD for shipping rates, local pickup, and local delivery."
+      >
         {listRule({
           ruleKey: 'hideShippingRates',
           label: 'Hide COD for one or more shipping rates',
@@ -235,12 +252,12 @@ export function AdvancedCodRulesSection({
           onChange={(value) => setRule('requireLocalDelivery', value)}
           disabled={disabled}
         />
-      </RuleCard>
+      </RuleSection>
     </BlockStack>
   );
 }
 
-function RuleCard({
+function RuleSection({
   title,
   description,
   children,
@@ -250,20 +267,25 @@ function RuleCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card>
-      <BlockStack gap="300">
-        <BlockStack gap="100">
-          <Text as="h2" variant="headingMd">
-            {title}
+    <InlineGrid
+      columns={{ xs: 1, md: ['oneThird', 'twoThirds'] }}
+      gap={{ xs: '400', md: '600' }}
+      alignItems="start"
+    >
+      <BlockStack gap="200">
+        <Text as="h2" variant="headingMd">
+          {title}
+        </Text>
+        {description ? (
+          <Text as="p" tone="subdued">
+            {description}
           </Text>
-          {description ? (
-            <Text as="p" tone="subdued">
-              {description}
-            </Text>
-          ) : null}
-        </BlockStack>
-        {children}
+        ) : null}
       </BlockStack>
-    </Card>
+
+      <Card>
+        <BlockStack gap="300">{children}</BlockStack>
+      </Card>
+    </InlineGrid>
   );
 }

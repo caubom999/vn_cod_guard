@@ -1,11 +1,8 @@
 import {
-  Badge,
   BlockStack,
-  Button,
-  Card,
   Checkbox,
+  Collapsible,
   InlineGrid,
-  InlineStack,
   SkeletonBodyText,
   Text,
   TextField,
@@ -17,11 +14,7 @@ export function HideCodPaymentMethodSection({
   setDraft,
   nameError,
   limitError,
-  isDirty,
   isLoading,
-  isSaving,
-  isSaved,
-  onSave,
 }: HideCodPaymentMethodSectionProps) {
   const update = <K extends keyof typeof draft>(
     key: K,
@@ -31,36 +24,32 @@ export function HideCodPaymentMethodSection({
   };
 
   return (
-    <Card>
-      <BlockStack gap="400">
-        <InlineStack align="space-between" blockAlign="center" gap="400">
-          <BlockStack gap="100">
-            <Text as="h2" variant="headingMd">
-              Hide cash on delivery based on the order total
-            </Text>
+    <BlockStack gap="300">
+      <Checkbox
+        label="Hide cash on delivery based on the order total"
+        checked={draft.enabled}
+        onChange={(value) => update('enabled', value)}
+        disabled={isLoading}
+      />
+
+      {isLoading ? (
+        <SkeletonBodyText lines={3} />
+      ) : (
+        <Collapsible
+          open={draft.enabled}
+          id="cod-payment-order-total-settings"
+          transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}
+        >
+          <BlockStack gap="400">
             <Text as="p" tone="subdued">
               Hide the COD payment method in the Payment section when the order
               total is outside your allowed range.
             </Text>
-          </BlockStack>
-          <Checkbox
-            label="Enable rule"
-            checked={draft.enabled}
-            onChange={(value) => update('enabled', value)}
-            disabled={isLoading}
-          />
-        </InlineStack>
-
-        {isLoading ? (
-          <SkeletonBodyText lines={4} />
-        ) : (
-          <>
             <TextField
               label="Payment method name"
               value={draft.paymentMethodName}
               onChange={(value) => update('paymentMethodName', value)}
               autoComplete="off"
-              disabled={!draft.enabled}
               helpText="Enter the exact name shown in the Payment section at checkout."
               error={nameError}
             />
@@ -75,7 +64,6 @@ export function HideCodPaymentMethodSection({
                 autoComplete="off"
                 suffix="VND"
                 placeholder="No lower limit"
-                disabled={!draft.enabled}
               />
               <TextField
                 label="Hide when order total is greater than"
@@ -86,32 +74,16 @@ export function HideCodPaymentMethodSection({
                 autoComplete="off"
                 suffix="VND"
                 placeholder="No upper limit"
-                disabled={!draft.enabled}
                 error={limitError}
               />
             </InlineGrid>
 
-            <InlineStack align="space-between" blockAlign="center" gap="300">
-              <Text as="p" tone="subdued">
-                This rule targets the payment method, not the COD shipping rate.
-              </Text>
-              <InlineStack gap="300" blockAlign="center">
-                {isSaved && !isDirty ? (
-                  <Badge tone="success">Saved to Shopify</Badge>
-                ) : null}
-                <Button
-                  variant="primary"
-                  disabled={!isDirty || Boolean(nameError || limitError)}
-                  loading={isSaving}
-                  onClick={onSave}
-                >
-                  Save payment rule
-                </Button>
-              </InlineStack>
-            </InlineStack>
-          </>
-        )}
-      </BlockStack>
-    </Card>
+            <Text as="p" tone="subdued">
+              This rule targets the payment method, not the COD shipping rate.
+            </Text>
+          </BlockStack>
+        </Collapsible>
+      )}
+    </BlockStack>
   );
 }

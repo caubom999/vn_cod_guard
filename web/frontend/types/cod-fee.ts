@@ -33,11 +33,7 @@ export type HideCodPaymentMethodSectionProps = {
   setDraft: Dispatch<SetStateAction<CodPaymentRuleDraft>>;
   nameError?: string;
   limitError?: string;
-  isDirty: boolean;
   isLoading: boolean;
-  isSaving: boolean;
-  isSaved: boolean;
-  onSave: () => void;
 };
 
 export type CodDeliveryAdvancedRules = {
@@ -112,14 +108,15 @@ export type AdvancedCodRulesSectionProps = {
   rules: CodDeliveryAdvancedRuleDraft;
   setRule: CodDeliveryAdvancedRuleUpdater;
   disabled: boolean;
+  paymentRule: HideCodPaymentMethodSectionProps;
 };
 
 export type CodDeliveryRuleSaveBarProps = {
   isDirty: boolean;
   isValid: boolean;
   isSaving: boolean;
-  isSaved: boolean;
   onSave: () => void;
+  onDiscard: () => void;
 };
 
 export type FeeCalculationSectionProps = {
