@@ -1,0 +1,25 @@
+api_version = "2026-04"
+
+[[extensions]]
+name = "t:name"
+handle = "hide-cod-delivery"
+type = "function"
+uid = "ab9b05cf-5094-54b3-1e5f-bc7fa8fc00a92bd5046f"
+description = "t:description"
+
+  [[extensions.targeting]]
+  target = "cart.delivery-options.transform.run"
+  input_query = "src/cart_delivery_options_transform_run.graphql"
+  export = "cart-delivery-options-transform-run"
+
+  [extensions.build]
+  command = ""
+  path = "dist/function.wasm"
+
+  [extensions.input.variables]
+  namespace = "$app:hide-cod-delivery"
+  key = "function-configuration"
+
+  [extensions.ui.paths]
+  create = "/"
+  details = "/"

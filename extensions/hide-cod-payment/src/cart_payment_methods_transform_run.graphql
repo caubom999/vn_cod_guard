@@ -1,0 +1,21 @@
+query CartPaymentMethodsTransformRunInput {
+  cart {
+    cost {
+      totalAmount {
+        amount
+      }
+    }
+  }
+  paymentMethods {
+    id
+    name
+  }
+  paymentCustomization {
+    metafield(
+      namespace: "$app:hide-cod-payment"
+      key: "function-configuration"
+    ) {
+      jsonValue
+    }
+  }
+}

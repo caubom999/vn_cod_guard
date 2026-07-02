@@ -1,11 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  LATEST_API_VERSION,
-  Session,
-  Shopify,
-  shopifyApi,
-} from '@shopify/shopify-api';
+import { ApiVersion, Session, Shopify, shopifyApi } from '@shopify/shopify-api';
 import { ShopifySessionRepository } from './shopify.repository';
 
 @Injectable()
@@ -25,7 +20,9 @@ export class ShopifyService {
       scopes: this.config.getOrThrow<string[]>('shopify.scopes'),
       hostName: this.hostName,
       hostScheme: this.config.get<'http' | 'https'>('app.scheme'),
-      apiVersion: LATEST_API_VERSION,
+      apiVersion: this.config.getOrThrow<string>(
+        'shopify.apiVersion',
+      ) as ApiVersion,
       isEmbeddedApp: true,
     });
   }

@@ -1,0 +1,59 @@
+query CartDeliveryOptionsTransformRunInput(
+  $hideCustomerTags: [String!] = []
+  $requireCustomerTags: [String!] = []
+  $hideCollectionIds: [ID!] = []
+  $requireCollectionIds: [ID!] = []
+) {
+  cart {
+    cost {
+      subtotalAmount {
+        amount
+      }
+    }
+    discountApplications {
+      __typename
+    }
+    buyerIdentity {
+      email
+      phone
+      customer {
+        hideTagMatch: hasAnyTag(tags: $hideCustomerTags)
+        requireTagMatch: hasAnyTag(tags: $requireCustomerTags)
+      }
+    }
+    lines {
+      merchandise {
+        ... on ProductVariant {
+          product {
+            id
+            vendor
+            isGiftCard
+            hideCollectionMatch: inAnyCollection(ids: $hideCollectionIds)
+            requireCollectionMatch: inAnyCollection(ids: $requireCollectionIds)
+          }
+        }
+      }
+    }
+    deliveryGroups {
+      deliveryAddress {
+        countryCode
+        provinceCode
+        zip
+      }
+      deliveryOptions {
+        handle
+        title
+        code
+        deliveryMethodType
+      }
+    }
+  }
+  deliveryCustomization {
+    metafield(
+      namespace: "$app:hide-cod-delivery"
+      key: "function-configuration"
+    ) {
+      jsonValue
+    }
+  }
+}
