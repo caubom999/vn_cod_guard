@@ -148,6 +148,17 @@ export type DisplayMessageSectionProps = {
   disabled?: boolean;
 };
 
+export type CodFeeSettingsSectionProps = {
+  draft: CodFeeDraft;
+  setField: CodFeeFieldUpdater;
+  onFeeTypeChange: (feeType: FeeType) => void;
+  feeAmountError?: string;
+  minimumError?: string;
+  lineItemTitleError?: string;
+  displayMessageError?: string;
+  disabled: boolean;
+};
+
 export type CodFeeSetting = {
   id: number;
   shopId: number;
@@ -166,11 +177,3 @@ export type UpdateCodFeeSetting = Omit<
   CodFeeSetting,
   'id' | 'shopId' | 'updatedAt'
 >;
-
-export type CodFeeSaveBarProps = {
-  isDirty: boolean;
-  isValid: boolean;
-  isSaving: boolean;
-  isSaved: boolean;
-  onSave: () => void;
-};

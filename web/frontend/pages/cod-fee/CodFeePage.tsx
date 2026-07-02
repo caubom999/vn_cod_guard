@@ -1,4 +1,4 @@
-import { BlockStack, InlineGrid } from '@shopify/polaris';
+import { BlockStack } from '@shopify/polaris';
 import { useEffect, useMemo, useState } from 'react';
 import { ErrorBanner } from '../../components/dashboard/shared';
 import {
@@ -33,12 +33,8 @@ import {
   initialCodFeeDraft,
 } from './cod-fee-form';
 import { AdvancedCodRulesSection } from './components/AdvancedCodRulesSection';
-import { CodFeeSaveBar } from './components/CodFeeSaveBar';
 import { CodDeliveryRuleSaveBar } from './components/CodDeliveryRuleSaveBar';
-import { DisplayMessageSection } from './components/DisplayMessageSection';
-import { FeeCalculationSection } from './components/FeeCalculationSection';
-import { FeeConditionsSection } from './components/FeeConditionsSection';
-import { FeeProductSection } from './components/FeeProductSection';
+import { CodFeeSettingsSection } from './components/CodFeeSettingsSection';
 import { HideCodShippingMethodSection } from './components/HideCodShippingMethodSection';
 
 function CodFeePage() {
@@ -183,6 +179,24 @@ function CodFeePage() {
     updateFeeSetting.mutate(toCodFeeInput(draft));
   };
 
+  const handleCodFeeDiscard = () => {
+    if (!feeSetting.data) {
+      return;
+    }
+
+    setDraft((current) => ({
+      ...current,
+      feeEnabled: feeSetting.data.enabled,
+      feeType: feeSetting.data.feeType,
+      feeAmount: String(feeSetting.data.feeAmount),
+      minimumOrderAmount: amountToText(feeSetting.data.minimumOrderAmount),
+      provinces: feeSetting.data.provinces.join(', '),
+      excludedCustomerTags: feeSetting.data.excludedCustomerTags.join(', '),
+      lineItemTitle: feeSetting.data.lineItemTitle,
+      displayMessage: feeSetting.data.displayMessage,
+    }));
+  };
+
   const handlePaymentRuleSave = () => {
     if (!paymentValidation.isValid) {
       return;
@@ -212,11 +226,16 @@ function CodFeePage() {
     if (paymentRuleDirty) {
       handlePaymentRuleSave();
     }
+
+    if (feeSettingDirty) {
+      handleCodFeeSave();
+    }
   };
 
   const handleVisibilityRulesDiscard = () => {
     handleDeliveryRuleDiscard();
     handlePaymentRuleDiscard();
+    handleCodFeeDiscard();
   };
 
   return (
@@ -260,51 +279,31 @@ function CodFeePage() {
         }}
       />
 
+      <CodFeeSettingsSection
+        draft={draft}
+        setField={setField}
+        onFeeTypeChange={handleFeeTypeChange}
+        feeAmountError={feeValidation.feeAmountError}
+        minimumError={feeValidation.minimumError}
+        lineItemTitleError={feeValidation.lineItemTitleError}
+        displayMessageError={feeValidation.displayMessageError}
+        disabled={feeSetting.isLoading || updateFeeSetting.isPending}
+      />
+
       <CodDeliveryRuleSaveBar
-        isDirty={deliveryRuleDirty || paymentRuleDirty}
+        isDirty={deliveryRuleDirty || paymentRuleDirty || feeSettingDirty}
         isValid={
           (!deliveryRuleDirty || shippingValidation.isValid) &&
-          (!paymentRuleDirty || paymentValidation.isValid)
+          (!paymentRuleDirty || paymentValidation.isValid) &&
+          (!feeSettingDirty || feeValidation.isValid)
         }
-        isSaving={updateDeliveryRule.isPending || updatePaymentRule.isPending}
+        isSaving={
+          updateDeliveryRule.isPending ||
+          updatePaymentRule.isPending ||
+          updateFeeSetting.isPending
+        }
         onSave={handleVisibilityRulesSave}
         onDiscard={handleVisibilityRulesDiscard}
-      />
-
-      <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-        <FeeCalculationSection
-          draft={draft}
-          setField={setField}
-          onFeeTypeChange={handleFeeTypeChange}
-          error={feeValidation.feeAmountError}
-          disabled={feeSetting.isLoading || updateFeeSetting.isPending}
-        />
-        <FeeConditionsSection
-          draft={draft}
-          setField={setField}
-          minimumError={feeValidation.minimumError}
-          disabled={feeSetting.isLoading || updateFeeSetting.isPending}
-        />
-      </InlineGrid>
-
-      <FeeProductSection
-        lineItemTitle={draft.lineItemTitle}
-        setField={setField}
-        error={feeValidation.lineItemTitleError}
-        disabled={feeSetting.isLoading || updateFeeSetting.isPending}
-      />
-      <DisplayMessageSection
-        message={draft.displayMessage}
-        setField={setField}
-        error={feeValidation.displayMessageError}
-        disabled={feeSetting.isLoading || updateFeeSetting.isPending}
-      />
-      <CodFeeSaveBar
-        isDirty={feeSettingDirty}
-        isValid={feeValidation.isValid}
-        isSaving={updateFeeSetting.isPending}
-        isSaved={updateFeeSetting.isSuccess}
-        onSave={handleCodFeeSave}
       />
     </BlockStack>
   );
