@@ -1,0 +1,58 @@
+{
+  "payload": {
+    "export": "cart-payment-methods-transform-run",
+    "target": "cart.payment-methods.transform.run",
+    "input": {
+      "cart": {
+        "cost": {
+          "totalAmount": {
+            "amount": "165000"
+          }
+        },
+        "lines": [
+          {
+            "discountAllocations": [
+              {
+                "discountedAmount": {
+                  "amount": "50000"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "paymentMethods": [
+        {
+          "id": "gid://shopify/PaymentCustomizationPaymentMethod/0",
+          "name": "Credit card"
+        },
+        {
+          "id": "gid://shopify/PaymentCustomizationPaymentMethod/1",
+          "name": "Cash on Delivery (COD)"
+        }
+      ],
+      "paymentCustomization": {
+        "metafield": {
+          "jsonValue": {
+            "enabled": true,
+            "hideByOrderTotal": false,
+            "hideDiscountedOrders": true,
+            "minimumDiscountAmount": 10000,
+            "paymentMethodName": "Cash on Delivery (COD)",
+            "hideBelowOrderTotal": null,
+            "hideAboveOrderTotal": null
+          }
+        }
+      }
+    },
+    "output": {
+      "operations": [
+        {
+          "paymentMethodHide": {
+            "paymentMethodId": "gid://shopify/PaymentCustomizationPaymentMethod/1"
+          }
+        }
+      ]
+    }
+  }
+}

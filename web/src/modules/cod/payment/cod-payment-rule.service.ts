@@ -13,7 +13,9 @@ const METAFIELD_NAMESPACE = '$app:hide-cod-payment';
 const METAFIELD_KEY = 'function-configuration';
 
 export type UpdateCodPaymentRuleDto = {
-  enabled?: boolean;
+  hideByOrderTotal?: boolean;
+  hideDiscountedOrders?: boolean;
+  minimumDiscountAmount?: number;
   paymentMethodName?: string;
   hideBelowOrderTotal?: number | null;
   hideAboveOrderTotal?: number | null;
@@ -63,8 +65,19 @@ export class CodPaymentRuleService {
   }
 
   private validate(dto: UpdateCodPaymentRuleDto, current: CodPaymentRule) {
-    const enabled =
-      typeof dto.enabled === 'boolean' ? dto.enabled : current.enabled;
+    const hideByOrderTotal =
+      typeof dto.hideByOrderTotal === 'boolean'
+        ? dto.hideByOrderTotal
+        : current.hideByOrderTotal;
+    const hideDiscountedOrders =
+      typeof dto.hideDiscountedOrders === 'boolean'
+        ? dto.hideDiscountedOrders
+        : current.hideDiscountedOrders;
+    const minimumDiscountAmount =
+      dto.minimumDiscountAmount === undefined
+        ? current.minimumDiscountAmount.toNumber()
+        : dto.minimumDiscountAmount;
+    const enabled = hideByOrderTotal || hideDiscountedOrders;
     const paymentMethodName =
       dto.paymentMethodName === undefined
         ? current.paymentMethodName
@@ -97,7 +110,7 @@ export class CodPaymentRuleService {
     }
 
     if (
-      enabled &&
+      hideByOrderTotal &&
       hideBelowOrderTotal === null &&
       hideAboveOrderTotal === null
     ) {
@@ -106,8 +119,21 @@ export class CodPaymentRuleService {
       );
     }
 
+    if (
+      !Number.isFinite(minimumDiscountAmount) ||
+      minimumDiscountAmount < 0 ||
+      minimumDiscountAmount > 999999999999
+    ) {
+      throw new BadRequestException(
+        'Minimum discount amount must be a valid positive amount',
+      );
+    }
+
     return {
       enabled,
+      hideByOrderTotal,
+      hideDiscountedOrders,
+      minimumDiscountAmount: new Prisma.Decimal(minimumDiscountAmount),
       paymentMethodName,
       hideBelowOrderTotal:
         hideBelowOrderTotal === null
@@ -145,6 +171,9 @@ export class CodPaymentRuleService {
     current: CodPaymentRule,
     rule: {
       enabled: boolean;
+      hideByOrderTotal: boolean;
+      hideDiscountedOrders: boolean;
+      minimumDiscountAmount: Prisma.Decimal;
       paymentMethodName: string;
       hideBelowOrderTotal: Prisma.Decimal | null;
       hideAboveOrderTotal: Prisma.Decimal | null;
@@ -156,6 +185,9 @@ export class CodPaymentRuleService {
 
     const configurationValue = JSON.stringify({
       enabled: rule.enabled,
+      hideByOrderTotal: rule.hideByOrderTotal,
+      hideDiscountedOrders: rule.hideDiscountedOrders,
+      minimumDiscountAmount: rule.minimumDiscountAmount.toNumber(),
       paymentMethodName: rule.paymentMethodName,
       hideBelowOrderTotal: rule.hideBelowOrderTotal?.toNumber() ?? null,
       hideAboveOrderTotal: rule.hideAboveOrderTotal?.toNumber() ?? null,
@@ -326,6 +358,9 @@ export class CodPaymentRuleService {
       id: rule.id,
       shopId: rule.shopId,
       enabled: rule.enabled,
+      hideByOrderTotal: rule.hideByOrderTotal,
+      hideDiscountedOrders: rule.hideDiscountedOrders,
+      minimumDiscountAmount: rule.minimumDiscountAmount.toNumber(),
       paymentMethodName: rule.paymentMethodName,
       hideBelowOrderTotal: rule.hideBelowOrderTotal?.toNumber() ?? null,
       hideAboveOrderTotal: rule.hideAboveOrderTotal?.toNumber() ?? null,

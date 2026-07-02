@@ -1,14 +1,15 @@
 import type { CodFeeDraft, CodPaymentRuleDraft } from '../../types/cod-fee';
 
 export const initialCodPaymentRuleDraft: CodPaymentRuleDraft = {
-  enabled: false,
+  hideByOrderTotal: false,
+  hideDiscountedOrders: false,
+  minimumDiscountAmount: '0',
   paymentMethodName: 'Cash on Delivery (COD)',
   hideBelowOrderTotal: '',
   hideAboveOrderTotal: '',
 };
 
 export const initialAdvancedDeliveryRules = {
-  hideDiscountedOrders: false,
   hideCustomerTags: '',
   requireCustomerTags: '',
   hideCustomerEmails: '',
@@ -109,7 +110,6 @@ export function getShippingRuleValidation(draft: CodFeeDraft) {
     ? 'Enter the shipping method name shown at checkout.'
     : undefined;
   let limitError: string | undefined;
-
   if (
     draft.hideCodShippingMethod &&
     hasBothLimits &&
@@ -137,20 +137,29 @@ export function getPaymentRuleValidation(draft: CodPaymentRuleDraft) {
     ? 'Enter the payment method name shown at checkout.'
     : undefined;
   let limitError: string | undefined;
+  const minimumDiscountAmount = Number(draft.minimumDiscountAmount);
+  const discountAmountError =
+    draft.hideDiscountedOrders &&
+    (draft.minimumDiscountAmount === '' ||
+      !Number.isFinite(minimumDiscountAmount) ||
+      minimumDiscountAmount < 0)
+      ? 'Enter a valid discount amount.'
+      : undefined;
 
   if (
-    draft.enabled &&
+    draft.hideByOrderTotal &&
     hasBothLimits &&
     Number(draft.hideBelowOrderTotal) >= Number(draft.hideAboveOrderTotal)
   ) {
     limitError = 'The maximum order total must be greater than the minimum.';
-  } else if (draft.enabled && !hasAnyLimit) {
+  } else if (draft.hideByOrderTotal && !hasAnyLimit) {
     limitError = 'Enter at least one order total limit.';
   }
 
   return {
     nameError,
     limitError,
-    isValid: !nameError && !limitError,
+    discountAmountError,
+    isValid: !nameError && !limitError && !discountAmountError,
   };
 }

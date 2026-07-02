@@ -17,7 +17,6 @@ type Configuration = {
 };
 
 type AdvancedRules = {
-  hideDiscountedOrders: boolean;
   hideCustomerTags: string[];
   requireCustomerTags: string[];
   hideCustomerEmails: string[];
@@ -43,7 +42,6 @@ type AdvancedRules = {
 };
 
 const DEFAULT_RULES: AdvancedRules = {
-  hideDiscountedOrders: false,
   hideCustomerTags: [],
   requireCustomerTags: [],
   hideCustomerEmails: [],
@@ -96,8 +94,7 @@ export function cartDeliveryOptionsTransformRun(
     isBelowMinimum ||
     isAboveMaximum ||
     shouldHideForCustomer(input, rules) ||
-    shouldHideForProducts(input, rules) ||
-    (rules.hideDiscountedOrders && input.cart.discountApplications.length > 0);
+    shouldHideForProducts(input, rules);
   const operations = input.cart.deliveryGroups.flatMap((group) =>
     group.deliveryOptions
       .filter((option) => option.title?.trim().toLowerCase() === normalizedName)

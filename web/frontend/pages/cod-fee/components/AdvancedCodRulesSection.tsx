@@ -88,13 +88,6 @@ export function AdvancedCodRulesSection({
         description="Control COD availability using the order total and discounts."
       >
         <HideCodPaymentMethodSection {...paymentRule} />
-        <Divider />
-        <Checkbox
-          label="Hide COD when the order has discounts"
-          checked={rules.hideDiscountedOrders}
-          onChange={(value) => setRule('hideDiscountedOrders', value)}
-          disabled={disabled}
-        />
       </RuleSection>
 
       <RuleSection

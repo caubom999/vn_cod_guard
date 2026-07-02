@@ -6,6 +6,9 @@ export type CodPaymentRule = {
   id: number;
   shopId: number;
   enabled: boolean;
+  hideByOrderTotal: boolean;
+  hideDiscountedOrders: boolean;
+  minimumDiscountAmount: number;
   paymentMethodName: string;
   hideBelowOrderTotal: number | null;
   hideAboveOrderTotal: number | null;
@@ -15,14 +18,18 @@ export type CodPaymentRule = {
 
 export type UpdateCodPaymentRule = Pick<
   CodPaymentRule,
-  | 'enabled'
+  | 'hideByOrderTotal'
+  | 'hideDiscountedOrders'
+  | 'minimumDiscountAmount'
   | 'paymentMethodName'
   | 'hideBelowOrderTotal'
   | 'hideAboveOrderTotal'
 >;
 
 export type CodPaymentRuleDraft = {
-  enabled: boolean;
+  hideByOrderTotal: boolean;
+  hideDiscountedOrders: boolean;
+  minimumDiscountAmount: string;
   paymentMethodName: string;
   hideBelowOrderTotal: string;
   hideAboveOrderTotal: string;
@@ -33,11 +40,11 @@ export type HideCodPaymentMethodSectionProps = {
   setDraft: Dispatch<SetStateAction<CodPaymentRuleDraft>>;
   nameError?: string;
   limitError?: string;
+  discountAmountError?: string;
   isLoading: boolean;
 };
 
 export type CodDeliveryAdvancedRules = {
-  hideDiscountedOrders: boolean;
   hideCustomerTags: string[];
   requireCustomerTags: string[];
   hideCustomerEmails: string[];

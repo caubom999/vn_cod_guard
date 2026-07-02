@@ -1,7 +1,9 @@
 import {
   BlockStack,
+  Box,
   Checkbox,
   Collapsible,
+  Divider,
   InlineGrid,
   SkeletonBodyText,
   Text,
@@ -14,6 +16,7 @@ export function HideCodPaymentMethodSection({
   setDraft,
   nameError,
   limitError,
+  discountAmountError,
   isLoading,
 }: HideCodPaymentMethodSectionProps) {
   const update = <K extends keyof typeof draft>(
@@ -27,8 +30,8 @@ export function HideCodPaymentMethodSection({
     <BlockStack gap="300">
       <Checkbox
         label="Hide cash on delivery based on the order total"
-        checked={draft.enabled}
-        onChange={(value) => update('enabled', value)}
+        checked={draft.hideByOrderTotal}
+        onChange={(value) => update('hideByOrderTotal', value)}
         disabled={isLoading}
       />
 
@@ -36,7 +39,7 @@ export function HideCodPaymentMethodSection({
         <SkeletonBodyText lines={3} />
       ) : (
         <Collapsible
-          open={draft.enabled}
+          open={draft.hideByOrderTotal}
           id="cod-payment-order-total-settings"
           transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}
         >
@@ -45,15 +48,6 @@ export function HideCodPaymentMethodSection({
               Hide the COD payment method in the Payment section when the order
               total is outside your allowed range.
             </Text>
-            <TextField
-              label="Payment method name"
-              value={draft.paymentMethodName}
-              onChange={(value) => update('paymentMethodName', value)}
-              autoComplete="off"
-              helpText="Enter the exact name shown in the Payment section at checkout."
-              error={nameError}
-            />
-
             <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
               <TextField
                 label="Hide when order total is less than"
@@ -77,13 +71,71 @@ export function HideCodPaymentMethodSection({
                 error={limitError}
               />
             </InlineGrid>
-
-            <Text as="p" tone="subdued">
-              This rule targets the payment method, not the COD shipping rate.
-            </Text>
           </BlockStack>
         </Collapsible>
       )}
+
+      <Divider />
+
+      <Checkbox
+        label="Hide cash on delivery if the order has discounts"
+        checked={draft.hideDiscountedOrders}
+        onChange={(value) => update('hideDiscountedOrders', value)}
+        disabled={isLoading}
+      />
+      <Collapsible
+        open={draft.hideDiscountedOrders}
+        id="cod-payment-discount-settings"
+        transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}
+      >
+        <Box
+          background="bg-surface-secondary"
+          borderRadius="200"
+          padding="300"
+          maxWidth="360px"
+        >
+          <BlockStack gap="200">
+            <Text as="p">
+              Cash on delivery will be hidden if the discount amount on the
+              order is greater than:
+            </Text>
+            <TextField
+              label="Minimum discount amount"
+              labelHidden
+              prefix="VND"
+              value={draft.minimumDiscountAmount}
+              onChange={(value) => update('minimumDiscountAmount', value)}
+              type="number"
+              min={0}
+              autoComplete="off"
+              error={discountAmountError}
+              disabled={isLoading}
+            />
+            <Text as="p" variant="bodySm" tone="subdued">
+              <strong>Important:</strong> use this option only if your prices
+              include taxes. If taxes are excluded from your prices, disable
+              this option.
+            </Text>
+          </BlockStack>
+        </Box>
+      </Collapsible>
+
+      {draft.hideByOrderTotal || draft.hideDiscountedOrders ? (
+        <>
+          <Divider />
+          <TextField
+            label="Payment method name"
+            value={draft.paymentMethodName}
+            onChange={(value) => update('paymentMethodName', value)}
+            autoComplete="off"
+            helpText="Enter the exact name shown in the Payment section at checkout."
+            error={nameError}
+          />
+          <Text as="p" tone="subdued">
+            These rules target the payment method, not the COD shipping rate.
+          </Text>
+        </>
+      ) : null}
     </BlockStack>
   );
 }

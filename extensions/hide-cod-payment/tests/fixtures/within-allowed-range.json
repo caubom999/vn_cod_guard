@@ -8,7 +8,8 @@
           "totalAmount": {
             "amount": "500000"
           }
-        }
+        },
+        "lines": []
       },
       "paymentMethods": [
         {
@@ -20,6 +21,7 @@
         "metafield": {
           "jsonValue": {
             "enabled": true,
+            "hideByOrderTotal": true,
             "paymentMethodName": "Cash on Delivery (COD)",
             "hideBelowOrderTotal": 100000,
             "hideAboveOrderTotal": 1000000

@@ -13,7 +13,6 @@ const METAFIELD_NAMESPACE = '$app:hide-cod-delivery';
 const METAFIELD_KEY = 'function-configuration';
 
 export type CodDeliveryAdvancedRules = {
-  hideDiscountedOrders: boolean;
   hideCustomerTags: string[];
   requireCustomerTags: string[];
   hideCustomerEmails: string[];
@@ -39,7 +38,6 @@ export type CodDeliveryAdvancedRules = {
 };
 
 const DEFAULT_ADVANCED_RULES: CodDeliveryAdvancedRules = {
-  hideDiscountedOrders: false,
   hideCustomerTags: [],
   requireCustomerTags: [],
   hideCustomerEmails: [],
@@ -185,7 +183,6 @@ export class CodDeliveryRuleService {
   ): CodDeliveryAdvancedRules {
     const source = value || current;
     const booleanKeys = [
-      'hideDiscountedOrders',
       'hideGiftCards',
       'hideLocalPickup',
       'requireLocalPickup',

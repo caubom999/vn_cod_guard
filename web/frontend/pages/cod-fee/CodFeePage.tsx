@@ -99,7 +99,9 @@ function CodFeePage() {
     }
 
     setPaymentDraft({
-      enabled: paymentRule.data.enabled,
+      hideByOrderTotal: paymentRule.data.hideByOrderTotal,
+      hideDiscountedOrders: paymentRule.data.hideDiscountedOrders,
+      minimumDiscountAmount: String(paymentRule.data.minimumDiscountAmount),
       paymentMethodName: paymentRule.data.paymentMethodName,
       hideBelowOrderTotal: amountToText(paymentRule.data.hideBelowOrderTotal),
       hideAboveOrderTotal: amountToText(paymentRule.data.hideAboveOrderTotal),
@@ -211,7 +213,9 @@ function CodFeePage() {
     }
 
     setPaymentDraft({
-      enabled: paymentRule.data.enabled,
+      hideByOrderTotal: paymentRule.data.hideByOrderTotal,
+      hideDiscountedOrders: paymentRule.data.hideDiscountedOrders,
+      minimumDiscountAmount: String(paymentRule.data.minimumDiscountAmount),
       paymentMethodName: paymentRule.data.paymentMethodName,
       hideBelowOrderTotal: amountToText(paymentRule.data.hideBelowOrderTotal),
       hideAboveOrderTotal: amountToText(paymentRule.data.hideAboveOrderTotal),
@@ -275,6 +279,7 @@ function CodFeePage() {
           setDraft: setPaymentDraft,
           nameError: paymentValidation.nameError,
           limitError: paymentValidation.limitError,
+          discountAmountError: paymentValidation.discountAmountError,
           isLoading: paymentRule.isLoading || updatePaymentRule.isPending,
         }}
       />
@@ -312,7 +317,9 @@ function CodFeePage() {
 function toPaymentRuleInput(rule: CodPaymentRuleDraft | CodPaymentRule) {
   if (typeof rule.hideBelowOrderTotal === 'string') {
     return {
-      enabled: rule.enabled,
+      hideByOrderTotal: rule.hideByOrderTotal,
+      hideDiscountedOrders: rule.hideDiscountedOrders,
+      minimumDiscountAmount: Number(rule.minimumDiscountAmount),
       paymentMethodName: rule.paymentMethodName.trim(),
       hideBelowOrderTotal:
         rule.hideBelowOrderTotal === ''
@@ -326,7 +333,9 @@ function toPaymentRuleInput(rule: CodPaymentRuleDraft | CodPaymentRule) {
   }
 
   return {
-    enabled: rule.enabled,
+    hideByOrderTotal: rule.hideByOrderTotal,
+    hideDiscountedOrders: rule.hideDiscountedOrders,
+    minimumDiscountAmount: rule.minimumDiscountAmount,
     paymentMethodName: rule.paymentMethodName,
     hideBelowOrderTotal: rule.hideBelowOrderTotal,
     hideAboveOrderTotal: rule.hideAboveOrderTotal,
@@ -407,7 +416,6 @@ function toAdvancedRuleDraft(
   rules: CodDeliveryAdvancedRules,
 ): CodDeliveryAdvancedRuleDraft {
   return {
-    hideDiscountedOrders: rules.hideDiscountedOrders,
     hideCustomerTags: rules.hideCustomerTags.join(', '),
     requireCustomerTags: rules.requireCustomerTags.join(', '),
     hideCustomerEmails: rules.hideCustomerEmails.join(', '),
@@ -437,7 +445,6 @@ function toAdvancedRules(
   rules: CodDeliveryAdvancedRuleDraft,
 ): CodDeliveryAdvancedRules {
   return {
-    hideDiscountedOrders: rules.hideDiscountedOrders,
     hideCustomerTags: splitList(rules.hideCustomerTags),
     requireCustomerTags: splitList(rules.requireCustomerTags),
     hideCustomerEmails: splitList(rules.hideCustomerEmails),
