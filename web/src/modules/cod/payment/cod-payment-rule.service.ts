@@ -5,7 +5,9 @@ import {
   SET_COD_PAYMENT_ACTIVATION,
   SET_COD_PAYMENT_CONFIGURATION,
 } from '../../graphql/mutation/payment-customization.mutation';
+import { COD_COLLECTIONS } from '../../graphql/query/collection.query';
 import { PAYMENT_GATEWAYS } from '../../graphql/query/payment-gateway.query';
+import { COD_PRODUCTS } from '../../graphql/query/product.query';
 import { ShopifyService } from '../../shopify/shopify.service';
 import { CodPaymentRuleRepository } from './cod-payment-rule.repository';
 
@@ -152,6 +154,154 @@ export class CodPaymentRuleService {
       );
       throw new BadRequestException(
         `Could not load Shopify payment methods: ${message}`,
+      );
+    }
+  }
+
+  async getProducts(shop: Shop, ids: string[] = []) {
+    const productIds = [
+      ...new Set(
+        ids.filter(
+          (id): id is string =>
+            typeof id === 'string' &&
+            /^gid:\/\/shopify\/Product\/\d+$/.test(id),
+        ),
+      ),
+    ];
+
+    if (productIds.length > 50) {
+      throw new BadRequestException('Select no more than 50 products');
+    }
+
+    if (!productIds.length) {
+      return { products: [] };
+    }
+
+    try {
+      const response = await this.shopify.graphql(shop.domain, COD_PRODUCTS, {
+        ids: productIds,
+      });
+      const nodes =
+        (
+          response as {
+            data?: {
+              nodes?: Array<{
+                id?: string;
+                title?: string;
+                featuredImage?: {
+                  url?: string;
+                  altText?: string | null;
+                } | null;
+              } | null>;
+            };
+          }
+        ).data?.nodes || [];
+
+      return {
+        products: nodes
+          .filter(
+            (
+              product,
+            ): product is {
+              id: string;
+              title?: string;
+              featuredImage?: {
+                url?: string;
+                altText?: string | null;
+              } | null;
+            } => Boolean(product?.id),
+          )
+          .map((product) => ({
+            id: product.id,
+            title: product.title || 'Untitled product',
+            imageUrl: product.featuredImage?.url || null,
+            imageAlt: product.featuredImage?.altText || product.title || '',
+          })),
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Shopify error';
+
+      this.logger.warn(
+        `Could not load products for ${shop.domain}: ${message}`,
+      );
+      throw new BadRequestException(
+        `Could not load Shopify products: ${message}`,
+      );
+    }
+  }
+
+  async getCollections(shop: Shop, ids: string[] = []) {
+    const collectionIds = [
+      ...new Set(
+        ids.filter(
+          (id): id is string =>
+            typeof id === 'string' &&
+            /^gid:\/\/shopify\/Collection\/\d+$/.test(id),
+        ),
+      ),
+    ];
+
+    if (collectionIds.length > 50) {
+      throw new BadRequestException('Select no more than 50 collections');
+    }
+
+    if (!collectionIds.length) {
+      return { collections: [] };
+    }
+
+    try {
+      const response = await this.shopify.graphql(
+        shop.domain,
+        COD_COLLECTIONS,
+        { ids: collectionIds },
+      );
+      const nodes =
+        (
+          response as {
+            data?: {
+              nodes?: Array<{
+                id?: string;
+                title?: string;
+                image?: {
+                  url?: string;
+                  altText?: string | null;
+                } | null;
+              } | null>;
+            };
+          }
+        ).data?.nodes || [];
+
+      return {
+        collections: nodes
+          .filter(
+            (
+              collection,
+            ): collection is {
+              id: string;
+              title?: string;
+              image?: {
+                url?: string;
+                altText?: string | null;
+              } | null;
+            } => Boolean(collection?.id),
+          )
+          .map((collection) => ({
+            id: collection.id,
+            title: collection.title || 'Untitled collection',
+            imageUrl: collection.image?.url || null,
+            imageAlt: collection.image?.altText || collection.title || '',
+          })),
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Shopify error';
+
+      this.logger.warn(
+        `Could not load collections for ${shop.domain}: ${message}`,
+      );
+      throw new BadRequestException(
+        `Could not load Shopify collections: ${message}`,
       );
     }
   }

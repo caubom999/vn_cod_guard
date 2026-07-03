@@ -12,6 +12,20 @@ export type CodPaymentMethod = {
   name: string;
 };
 
+export type CodProduct = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  imageAlt: string;
+};
+
+export type CodCollection = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  imageAlt: string;
+};
+
 export type CodPaymentRule = {
   id: number;
   shopId: number;

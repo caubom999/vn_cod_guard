@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   AuthenticatedRequest,
   ShopifyGuard,
@@ -21,6 +29,22 @@ export class CodPaymentRuleController {
   @Get('methods')
   getPaymentMethods(@Req() request: AuthenticatedRequest) {
     return this.paymentRule.getPaymentMethods(request.shop);
+  }
+
+  @Post('products')
+  getProducts(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: { ids?: string[] },
+  ) {
+    return this.paymentRule.getProducts(request.shop, body.ids);
+  }
+
+  @Post('collections')
+  getCollections(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: { ids?: string[] },
+  ) {
+    return this.paymentRule.getCollections(request.shop, body.ids);
   }
 
   @Put()

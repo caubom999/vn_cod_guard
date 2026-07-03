@@ -1,6 +1,7 @@
 import {
   Autocomplete,
   BlockStack,
+  Box,
   Button,
   Card,
   Checkbox,
@@ -11,13 +12,22 @@ import {
   Tag,
   Text,
   TextField,
+  Thumbnail,
 } from '@shopify/polaris';
+import { useAppBridge } from '@shopify/app-bridge-react';
+import { CollectionIcon, ProductIcon, XIcon } from '@shopify/polaris-icons';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import type { CountryCode } from 'libphonenumber-js';
 import { useMemo, useState } from 'react';
+import {
+  useCodCollections,
+  useCodProducts,
+} from '../../../hook/cod-payment-rule';
 import type {
   AdvancedCodRulesSectionProps,
+  CodCollection,
   CodPaymentAdvancedRuleDraft,
+  CodProduct,
 } from '../../../types/cod-fee';
 import { COUNTRY_OPTIONS, PHONE_COUNTRY_OPTIONS } from '../country-options';
 import { HideCodPaymentMethodSection } from './HideCodPaymentMethodSection';
@@ -171,12 +181,11 @@ export function AdvancedCodRulesSection({
         title="Limit COD payment by products"
         description="Control COD using products, gift cards, collections, and vendors."
       >
-        {listRule({
-          ruleKey: 'hideProductIds',
-          label: 'Hide COD payment for one or more products',
-          placeholder: 'gid://shopify/Product/123',
-          helpText: 'Enter Shopify product GIDs separated by commas.',
-        })}
+        <ProductRule
+          value={rules.hideProductIds}
+          disabled={disabled}
+          onChange={(value) => setRule('hideProductIds', value)}
+        />
         <Checkbox
           label="Hide COD payment for gift cards"
           checked={rules.hideGiftCards}
@@ -184,18 +193,18 @@ export function AdvancedCodRulesSection({
           disabled={disabled}
         />
         <Divider />
-        {listRule({
-          ruleKey: 'hideCollectionIds',
-          label: 'Hide COD payment for one or more collections',
-          placeholder: 'gid://shopify/Collection/123',
-          helpText: 'Enter Shopify collection GIDs separated by commas.',
-        })}
-        {listRule({
-          ruleKey: 'requireCollectionIds',
-          label: 'Show COD payment only for specific collections',
-          placeholder: 'gid://shopify/Collection/123',
-          helpText: 'Enter Shopify collection GIDs separated by commas.',
-        })}
+        <CollectionRule
+          mode="hide"
+          value={rules.hideCollectionIds}
+          disabled={disabled}
+          onChange={(value) => setRule('hideCollectionIds', value)}
+        />
+        <CollectionRule
+          mode="require"
+          value={rules.requireCollectionIds}
+          disabled={disabled}
+          onChange={(value) => setRule('requireCollectionIds', value)}
+        />
         <Divider />
         {listRule({
           ruleKey: 'hideProductVendors',
@@ -254,6 +263,386 @@ export function AdvancedCodRulesSection({
       </RuleSection>
     </BlockStack>
   );
+}
+
+function ProductRule({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const shopify = useAppBridge();
+  const productIds = useMemo(
+    () =>
+      value
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean),
+    [value],
+  );
+  const productsQuery = useCodProducts(productIds);
+  const [expanded, setExpanded] = useState(Boolean(productIds.length));
+  const [picking, setPicking] = useState(false);
+  const [pickedProducts, setPickedProducts] = useState<CodProduct[]>([]);
+  const checked = expanded || productIds.length > 0;
+  const products = useMemo(() => {
+    const byId = new Map<string, CodProduct>();
+
+    for (const product of productsQuery.data?.products || []) {
+      byId.set(product.id, product);
+    }
+
+    for (const product of pickedProducts) {
+      byId.set(product.id, product);
+    }
+
+    return productIds.map(
+      (id) =>
+        byId.get(id) || {
+          id,
+          title: `Product ${getNumericId(id)}`,
+          imageUrl: null,
+          imageAlt: '',
+        },
+    );
+  }, [pickedProducts, productIds, productsQuery.data?.products]);
+
+  const selectProducts = async () => {
+    setPicking(true);
+
+    try {
+      const selection = await shopify.resourcePicker({
+        type: 'product',
+        action: 'select',
+        multiple: 50,
+        selectionIds: productIds.map((id) => ({ id })),
+        filter: {
+          variants: false,
+          draft: false,
+          archived: false,
+        },
+      });
+
+      if (!selection) {
+        return;
+      }
+
+      const selectedProducts = selection.selection || selection;
+      const summaries = selectedProducts.map((product) => ({
+        id: product.id,
+        title: product.title,
+        imageUrl: product.images?.[0]?.originalSrc || null,
+        imageAlt: product.images?.[0]?.altText || product.title,
+      }));
+
+      setPickedProducts(summaries);
+      onChange(summaries.map((product) => product.id).join(', '));
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  const removeProduct = (id: string) => {
+    onChange(productIds.filter((productId) => productId !== id).join(', '));
+    setPickedProducts((current) =>
+      current.filter((product) => product.id !== id),
+    );
+  };
+
+  return (
+    <BlockStack gap="200">
+      <Checkbox
+        label="Hide COD payment for one or more products"
+        checked={checked}
+        disabled={disabled}
+        onChange={(nextChecked) => {
+          setExpanded(nextChecked);
+
+          if (!nextChecked) {
+            onChange('');
+            setPickedProducts([]);
+          }
+        }}
+      />
+      {checked ? (
+        <Box background="bg-surface-secondary" borderRadius="300" padding="400">
+          <BlockStack gap="300">
+            <Text as="p">
+              COD payment will be hidden when any selected product is in the
+              cart.
+            </Text>
+            <InlineStack>
+              <Button
+                onClick={selectProducts}
+                loading={picking}
+                disabled={disabled}
+              >
+                Browse products
+              </Button>
+            </InlineStack>
+
+            {productsQuery.error ? (
+              <Text as="p" tone="critical">
+                {(productsQuery.error as Error).message}
+              </Text>
+            ) : null}
+
+            {products.length ? (
+              <BlockStack gap="200">
+                {products.map((product) => (
+                  <Box
+                    key={product.id}
+                    background="bg-surface"
+                    borderRadius="200"
+                    padding="300"
+                  >
+                    <InlineStack
+                      align="space-between"
+                      blockAlign="center"
+                      gap="300"
+                      wrap={false}
+                    >
+                      <InlineStack blockAlign="center" gap="300" wrap={false}>
+                        <Thumbnail
+                          source={product.imageUrl || ProductIcon}
+                          alt={product.imageAlt || product.title}
+                          size="small"
+                        />
+                        <BlockStack gap="050">
+                          <Text as="p" fontWeight="semibold">
+                            {product.title}
+                          </Text>
+                          <Text as="p" tone="subdued" variant="bodySm">
+                            Product ID: {getNumericId(product.id)}
+                          </Text>
+                        </BlockStack>
+                      </InlineStack>
+                      <Button
+                        icon={XIcon}
+                        variant="tertiary"
+                        tone="critical"
+                        accessibilityLabel={`Remove ${product.title}`}
+                        onClick={() => removeProduct(product.id)}
+                        disabled={disabled}
+                      />
+                    </InlineStack>
+                  </Box>
+                ))}
+              </BlockStack>
+            ) : (
+              <Text as="p" tone="subdued">
+                No products selected.
+              </Text>
+            )}
+
+            <Text as="p" tone="subdued" variant="bodySm">
+              You can select up to 50 products.
+            </Text>
+          </BlockStack>
+        </Box>
+      ) : null}
+    </BlockStack>
+  );
+}
+
+function CollectionRule({
+  mode,
+  value,
+  disabled,
+  onChange,
+}: {
+  mode: 'hide' | 'require';
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const shopify = useAppBridge();
+  const collectionIds = useMemo(
+    () =>
+      value
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean),
+    [value],
+  );
+  const collectionsQuery = useCodCollections(collectionIds);
+  const [expanded, setExpanded] = useState(Boolean(collectionIds.length));
+  const [picking, setPicking] = useState(false);
+  const [pickedCollections, setPickedCollections] = useState<CodCollection[]>(
+    [],
+  );
+  const checked = expanded || collectionIds.length > 0;
+  const collections = useMemo(() => {
+    const byId = new Map<string, CodCollection>();
+
+    for (const collection of collectionsQuery.data?.collections || []) {
+      byId.set(collection.id, collection);
+    }
+
+    for (const collection of pickedCollections) {
+      byId.set(collection.id, collection);
+    }
+
+    return collectionIds.map(
+      (id) =>
+        byId.get(id) || {
+          id,
+          title: `Collection ${getNumericId(id)}`,
+          imageUrl: null,
+          imageAlt: '',
+        },
+    );
+  }, [
+    collectionIds,
+    collectionsQuery.data?.collections,
+    pickedCollections,
+  ]);
+  const label =
+    mode === 'hide'
+      ? 'Hide COD payment for one or more collections'
+      : 'Show COD payment only for specific collections';
+
+  const selectCollections = async () => {
+    setPicking(true);
+
+    try {
+      const selection = await shopify.resourcePicker({
+        type: 'collection',
+        action: 'select',
+        multiple: 50,
+        selectionIds: collectionIds.map((id) => ({ id })),
+      });
+
+      if (!selection) {
+        return;
+      }
+
+      const selectedCollections = selection.selection || selection;
+      const summaries = selectedCollections.map((collection) => ({
+        id: collection.id,
+        title: collection.title,
+        imageUrl: collection.image?.originalSrc || null,
+        imageAlt: collection.image?.altText || collection.title,
+      }));
+
+      setPickedCollections(summaries);
+      onChange(summaries.map((collection) => collection.id).join(', '));
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  const removeCollection = (id: string) => {
+    onChange(
+      collectionIds.filter((collectionId) => collectionId !== id).join(', '),
+    );
+    setPickedCollections((current) =>
+      current.filter((collection) => collection.id !== id),
+    );
+  };
+
+  return (
+    <BlockStack gap="200">
+      <Checkbox
+        label={label}
+        checked={checked}
+        disabled={disabled}
+        onChange={(nextChecked) => {
+          setExpanded(nextChecked);
+
+          if (!nextChecked) {
+            onChange('');
+            setPickedCollections([]);
+          }
+        }}
+      />
+      {checked ? (
+        <Box background="bg-surface-secondary" borderRadius="300" padding="400">
+          <BlockStack gap="300">
+            <Text as="p">
+              {mode === 'hide'
+                ? 'COD payment will be hidden when the cart contains a product from any selected collection.'
+                : 'COD payment will only be shown when the cart contains a product from a selected collection.'}
+            </Text>
+            <InlineStack>
+              <Button
+                onClick={selectCollections}
+                loading={picking}
+                disabled={disabled}
+              >
+                Browse collections
+              </Button>
+            </InlineStack>
+
+            {collectionsQuery.error ? (
+              <Text as="p" tone="critical">
+                {(collectionsQuery.error as Error).message}
+              </Text>
+            ) : null}
+
+            {collections.length ? (
+              <BlockStack gap="200">
+                {collections.map((collection) => (
+                  <Box
+                    key={collection.id}
+                    background="bg-surface"
+                    borderRadius="200"
+                    padding="300"
+                  >
+                    <InlineStack
+                      align="space-between"
+                      blockAlign="center"
+                      gap="300"
+                      wrap={false}
+                    >
+                      <InlineStack blockAlign="center" gap="300" wrap={false}>
+                        <Thumbnail
+                          source={collection.imageUrl || CollectionIcon}
+                          alt={collection.imageAlt || collection.title}
+                          size="small"
+                        />
+                        <BlockStack gap="050">
+                          <Text as="p" fontWeight="semibold">
+                            {collection.title}
+                          </Text>
+                          <Text as="p" tone="subdued" variant="bodySm">
+                            Collection ID: {getNumericId(collection.id)}
+                          </Text>
+                        </BlockStack>
+                      </InlineStack>
+                      <Button
+                        icon={XIcon}
+                        variant="tertiary"
+                        tone="critical"
+                        accessibilityLabel={`Remove ${collection.title}`}
+                        onClick={() => removeCollection(collection.id)}
+                        disabled={disabled}
+                      />
+                    </InlineStack>
+                  </Box>
+                ))}
+              </BlockStack>
+            ) : (
+              <Text as="p" tone="subdued">
+                No collections selected.
+              </Text>
+            )}
+
+            <Text as="p" tone="subdued" variant="bodySm">
+              You can select up to 50 collections.
+            </Text>
+          </BlockStack>
+        </Box>
+      ) : null}
+    </BlockStack>
+  );
+}
+
+function getNumericId(id: string) {
+  return id.split('/').pop() || id;
 }
 
 function CountryCodeRule({
