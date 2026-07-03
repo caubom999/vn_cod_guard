@@ -6,6 +6,7 @@ import {
   Divider,
   InlineStack,
   Modal,
+  Pagination,
   Select,
   SkeletonBodyText,
   Text,
@@ -48,21 +49,35 @@ const orderStatusOptions = [
   { label: 'Risky', value: 'RISKY' },
 ];
 
+const pageSizeOptions = [
+  { label: '10', value: '10' },
+  { label: '20', value: '20' },
+  { label: '50', value: '50' },
+  { label: '100', value: '100' },
+];
+
 function OrdersScreen() {
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const {
-    data: orders,
+    data: ordersResult,
     isLoading,
     error,
-  } = useCodOrders(status, search.trim());
+  } = useCodOrders(status, search.trim(), page, pageSize);
   const selectedOrder = useCodOrderDetail(selectedOrderId);
   const riskRules = useRiskRules();
 
   useEffect(() => {
+    setPage(1);
     setSelectedOrderId(null);
-  }, [status, search]);
+  }, [status, search, pageSize]);
+
+  useEffect(() => {
+    setSelectedOrderId(null);
+  }, [page]);
 
   if (error) {
     return <ErrorBanner error={error} />;
@@ -89,16 +104,35 @@ function OrdersScreen() {
                 autoComplete="off"
               />
             </div>
+            <div style={filterFieldStyle}>
+              <Select
+                label="Rows per page"
+                options={pageSizeOptions}
+                value={String(pageSize)}
+                onChange={(value) => setPageSize(Number(value))}
+              />
+            </div>
           </InlineStack>
 
           {isLoading ? (
             <SkeletonBodyText lines={8} />
           ) : (
-            <OrdersTable
-              orders={orders || []}
-              selectedOrderId={selectedOrderId}
-              onSelect={setSelectedOrderId}
-            />
+            <BlockStack gap="400">
+              <OrdersTable
+                orders={ordersResult?.items || []}
+                selectedOrderId={selectedOrderId}
+                onSelect={setSelectedOrderId}
+              />
+              {ordersResult ? (
+                <OrdersPagination
+                  page={ordersResult.pagination.page}
+                  pageSize={ordersResult.pagination.pageSize}
+                  total={ordersResult.pagination.total}
+                  totalPages={ordersResult.pagination.totalPages}
+                  onPageChange={setPage}
+                />
+              ) : null}
+            </BlockStack>
           )}
         </BlockStack>
       </Card>
@@ -112,6 +146,38 @@ function OrdersScreen() {
         onClose={() => setSelectedOrderId(null)}
       />
     </BlockStack>
+  );
+}
+
+function OrdersPagination({
+  page,
+  pageSize,
+  total,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+
+  return (
+    <InlineStack align="space-between" blockAlign="center" gap="300">
+      <Text as="p" tone="subdued">
+        Showing {start}–{end} of {total} orders
+      </Text>
+      <Pagination
+        label={`Page ${page} of ${totalPages}`}
+        hasPrevious={page > 1}
+        onPrevious={() => onPageChange(page - 1)}
+        hasNext={page < totalPages}
+        onNext={() => onPageChange(page + 1)}
+      />
+    </InlineStack>
   );
 }
 

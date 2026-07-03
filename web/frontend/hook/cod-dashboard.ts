@@ -44,6 +44,16 @@ export type CodOrderSummary = {
   createdAt: string;
 };
 
+export type PaginatedCodOrders = {
+  items: CodOrderSummary[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
 export type CodOrderDetail = CodOrderSummary & {
   shopifyOrderGid: string;
   orderNumber?: string | null;
@@ -140,18 +150,24 @@ export function useCodOverview() {
   });
 }
 
-export function useCodOrders(status?: string, search?: string) {
+export function useCodOrders(
+  status: string | undefined,
+  search: string | undefined,
+  page: number,
+  pageSize: number,
+) {
   const api = useApi();
 
   return useQuery({
-    queryKey: ['cod-orders', status || 'ALL', search || ''],
+    queryKey: ['cod-orders', status || 'ALL', search || '', page, pageSize],
     queryFn: () =>
-      api<CodOrderSummary[]>(
+      api<PaginatedCodOrders>(
         '/api/cod/orders?' +
           new URLSearchParams({
             ...(status ? { status } : {}),
             ...(search ? { search } : {}),
-            limit: '100',
+            page: String(page),
+            limit: String(pageSize),
           }).toString(),
       ),
   });
