@@ -10,6 +10,7 @@ import {
 } from '@shopify/polaris';
 import type { ReactNode } from 'react';
 import type { CodOrderStatus } from '../../hook/cod-dashboard';
+import { getRiskBand } from '../../utils/risk-score';
 
 export function MetricGrid({ children }: { children: ReactNode }) {
   return (
@@ -66,6 +67,12 @@ export function StatusBadge({ status }: { status: CodOrderStatus }) {
   const item = map[status] || { label: status };
 
   return <Badge tone={item.tone}>{item.label}</Badge>;
+}
+
+export function RiskScoreBadge({ score }: { score: number }) {
+  const band = getRiskBand(score);
+
+  return <Badge tone={band.tone}>{`${score} · ${band.label}`}</Badge>;
 }
 
 export function ErrorBanner({ error }: { error: unknown }) {

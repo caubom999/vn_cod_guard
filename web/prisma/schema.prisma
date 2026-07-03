@@ -221,9 +221,9 @@ model CodShopSetting {
   blacklistPhoneEnabled       Boolean             @default(true)
   blacklistPhoneScore         Int                 @default(80)
   blacklistEmailEnabled       Boolean             @default(true)
-  blacklistEmailScore         Int                 @default(70)
+  blacklistEmailScore         Int                 @default(60)
   blacklistAddressEnabled     Boolean             @default(true)
-  blacklistAddressScore       Int                 @default(70)
+  blacklistAddressScore       Int                 @default(40)
   createdAt                   DateTime            @default(now())
   updatedAt                   DateTime            @updatedAt
 

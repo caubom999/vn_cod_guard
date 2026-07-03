@@ -31,11 +31,13 @@ import {
   ErrorBanner,
   MetricCard,
   MetricGrid,
+  RiskScoreBadge,
   StatusBadge,
   compact,
   formatDateTime,
   formatMoney,
 } from '../../components/dashboard/shared';
+import { getRiskBand } from '../../utils/risk-score';
 
 const orderStatusOptions = [
   { label: 'All orders', value: '' },
@@ -238,14 +240,7 @@ function OrdersTable({
             <StatusBadge status={order.status} />
           </IndexTable.Cell>
           <IndexTable.Cell>
-            <Text
-              as="span"
-              tone={order.riskScore >= 50 ? 'caution' : undefined}
-              fontWeight={order.riskScore >= 50 ? 'semibold' : 'regular'}
-              numeric
-            >
-              {order.riskScore}
-            </Text>
+            <RiskScoreBadge score={order.riskScore} />
           </IndexTable.Cell>
           <IndexTable.Cell>
             {formatDateTime(order.expiresAt)}
@@ -307,7 +302,7 @@ function OrderDetailModal({
               />
               <MetricCard
                 label="Risk score"
-                value={order.riskScore}
+                value={`${order.riskScore} · ${getRiskBand(order.riskScore).label}`}
                 tone={order.riskScore >= 50 ? 'warning' : undefined}
               />
               <MetricCard label="Reminders" value={order.reminderCount} />
@@ -431,6 +426,7 @@ function RiskBreakdown({
   riskRules: RiskRule[];
 }) {
   const reasons = getRiskReasons(order.riskReasonJson);
+  const riskBand = getRiskBand(order.riskScore);
 
   return (
     <BlockStack gap="200">
@@ -456,6 +452,9 @@ function RiskBreakdown({
           removes the risky tag, but the original score remains here for audit.
         </Text>
       ) : null}
+      <Text as="p" tone="subdued">
+        Risk level: {riskBand.label} ({riskBand.range}).
+      </Text>
     </BlockStack>
   );
 }

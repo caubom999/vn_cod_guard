@@ -24,13 +24,13 @@ import {
   useUpdateRiskRule,
 } from '../../hook/cod-dashboard';
 import {
-  EmptyText,
   ErrorBanner,
   MetricCard,
   MetricGrid,
   formatMoney,
   formatPercent,
 } from '../../components/dashboard/shared';
+import { getRiskBand } from '../../utils/risk-score';
 
 function AnalyticsScreen() {
   const { data, isLoading, error } = useCodOverview();
@@ -93,10 +93,22 @@ function AnalyticsScreen() {
               <Badge>Maximum score: 100 points</Badge>
               <Badge>Scores are cumulative</Badge>
             </InlineStack>
+            <InlineStack gap="200" wrap>
+              {[0, 25, 50, 75].map((score) => {
+                const band = getRiskBand(score);
+
+                return (
+                  <Badge key={band.label} tone={band.tone}>
+                    {`${band.label}: ${band.range}`}
+                  </Badge>
+                );
+              })}
+            </InlineStack>
             <Text as="p" tone="subdued">
               Orders with 50 points or more are marked for review and tagged
               <code> cod_risky</code>. Risk scoring does not automatically
-              block or cancel an order.
+              block or cancel an order. The score is a review signal, not a
+              probability of fraud.
             </Text>
           </BlockStack>
 
@@ -337,7 +349,7 @@ function BlacklistRuleEditModal({
           />
           <TextField
             label="Risk score to add"
-            helpText="The final order score is capped at 100."
+            helpText="Use 1–100 points, or disable the rule to contribute 0. The final score is capped at 100."
             value={score}
             onChange={setScore}
             type="number"
@@ -664,7 +676,7 @@ function RiskRuleEditModal({
 
             <TextField
               label="Risk score to add"
-              helpText="The final order score is capped at 100."
+              helpText="Use 1–100 points, or disable the rule to contribute 0. The final score is capped at 100."
               value={score}
               onChange={setScore}
               type="number"

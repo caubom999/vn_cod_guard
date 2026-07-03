@@ -15,21 +15,21 @@ const DEFAULT_RISK_RULES: Array<{
     enabled: true,
     priority: 10,
     conditionJson: { type: 'missing_phone' },
-    actionJson: { score: 60, reason: 'missing_phone' },
+    actionJson: { score: 40, reason: 'missing_phone' },
   },
   {
     name: 'Missing email',
     enabled: true,
     priority: 20,
     conditionJson: { type: 'missing_email' },
-    actionJson: { score: 20, reason: 'missing_email' },
+    actionJson: { score: 5, reason: 'missing_email' },
   },
   {
     name: 'High order amount',
     enabled: true,
     priority: 30,
     conditionJson: { type: 'amount_gte', amount: 2000000 },
-    actionJson: { score: 25, reason: 'high_order_amount' },
+    actionJson: { score: 20, reason: 'high_order_amount' },
   },
   {
     name: 'Phone cancelled multiple times',
@@ -43,7 +43,7 @@ const DEFAULT_RISK_RULES: Array<{
     enabled: false,
     priority: 50,
     conditionJson: { type: 'location_in', provinces: [], cities: [] },
-    actionJson: { score: 30, reason: 'risky_location' },
+    actionJson: { score: 20, reason: 'risky_location' },
   },
 ];
 
