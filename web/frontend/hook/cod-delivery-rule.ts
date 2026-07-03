@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CodShippingMethod } from '../types/cod-fee';
 import { useApi } from './api';
 
 export type CodDeliveryRule = {
@@ -26,6 +27,16 @@ export function useCodDeliveryRule() {
   return useQuery({
     queryKey: ['cod-delivery-rule'],
     queryFn: () => api<CodDeliveryRule>('/api/cod/delivery-rule'),
+  });
+}
+
+export function useCodShippingMethods() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: ['cod-shipping-methods'],
+    queryFn: () =>
+      api<{ methods: CodShippingMethod[] }>('/api/cod/delivery-rule/methods'),
   });
 }
 

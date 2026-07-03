@@ -2,6 +2,16 @@ import type { Dispatch, SetStateAction } from 'react';
 
 export type FeeType = 'fixed' | 'percentage';
 
+export type CodShippingMethod = {
+  id: string;
+  name: string;
+};
+
+export type CodPaymentMethod = {
+  id: string;
+  name: string;
+};
+
 export type CodPaymentRule = {
   id: number;
   shopId: number;
@@ -42,7 +52,6 @@ export type CodPaymentRuleDraft = {
 export type HideCodPaymentMethodSectionProps = {
   draft: CodPaymentRuleDraft;
   setDraft: Dispatch<SetStateAction<CodPaymentRuleDraft>>;
-  nameError?: string;
   limitError?: string;
   discountAmountError?: string;
   isLoading: boolean;
@@ -102,9 +111,18 @@ export type CodFeeFieldUpdater = <K extends keyof CodFeeDraft>(
 export type HideCodShippingMethodSectionProps = {
   draft: CodFeeDraft;
   setField: CodFeeFieldUpdater;
-  nameError?: string;
   limitError?: string;
   isLoading: boolean;
+};
+
+export type ShippingMethodSectionProps = {
+  draft: CodFeeDraft;
+  setField: CodFeeFieldUpdater;
+  methods: CodShippingMethod[];
+  nameError?: string;
+  isLoading: boolean;
+  isSyncing: boolean;
+  onSync: () => void;
 };
 
 export type CodPaymentAdvancedRuleUpdater = <
@@ -119,6 +137,16 @@ export type AdvancedCodRulesSectionProps = {
   setRule: CodPaymentAdvancedRuleUpdater;
   disabled: boolean;
   paymentRule: HideCodPaymentMethodSectionProps;
+};
+
+export type PaymentMethodSectionProps = {
+  draft: CodPaymentRuleDraft;
+  setDraft: Dispatch<SetStateAction<CodPaymentRuleDraft>>;
+  methods: CodPaymentMethod[];
+  nameError?: string;
+  isLoading: boolean;
+  isSyncing: boolean;
+  onSync: () => void;
 };
 
 export type CodDeliveryRuleSaveBarProps = {

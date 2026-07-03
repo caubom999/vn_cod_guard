@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CodPaymentRule, UpdateCodPaymentRule } from '../types/cod-fee';
+import type {
+  CodPaymentMethod,
+  CodPaymentRule,
+  UpdateCodPaymentRule,
+} from '../types/cod-fee';
 import { useApi } from './api';
 
 export function useCodPaymentRule() {
@@ -8,6 +12,16 @@ export function useCodPaymentRule() {
   return useQuery({
     queryKey: ['cod-payment-rule'],
     queryFn: () => api<CodPaymentRule>('/api/cod/payment-rule'),
+  });
+}
+
+export function useCodPaymentMethods() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: ['cod-payment-methods'],
+    queryFn: () =>
+      api<{ methods: CodPaymentMethod[] }>('/api/cod/payment-rule/methods'),
   });
 }
 

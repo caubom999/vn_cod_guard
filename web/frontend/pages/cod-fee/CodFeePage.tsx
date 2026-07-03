@@ -4,6 +4,7 @@ import { ErrorBanner } from '../../components/dashboard/shared';
 import {
   type CodDeliveryRule,
   useCodDeliveryRule,
+  useCodShippingMethods,
   useUpdateCodDeliveryRule,
 } from '../../hook/cod-delivery-rule';
 import {
@@ -11,6 +12,7 @@ import {
   useUpdateCodFeeSetting,
 } from '../../hook/cod-fee-setting';
 import {
+  useCodPaymentMethods,
   useCodPaymentRule,
   useUpdateCodPaymentRule,
 } from '../../hook/cod-payment-rule';
@@ -24,6 +26,7 @@ import type {
   CodPaymentAdvancedRules,
   CodPaymentRuleDraft,
   FeeType,
+  UpdateCodPaymentRule,
 } from '../../types/cod-fee';
 import {
   getCodFeeValidation,
@@ -36,6 +39,8 @@ import { AdvancedCodRulesSection } from './components/AdvancedCodRulesSection';
 import { CodDeliveryRuleSaveBar } from './components/CodDeliveryRuleSaveBar';
 import { CodFeeSettingsSection } from './components/CodFeeSettingsSection';
 import { HideCodShippingMethodSection } from './components/HideCodShippingMethodSection';
+import { PaymentMethodSection } from './components/PaymentMethodSection';
+import { ShippingMethodSection } from './components/ShippingMethodSection';
 
 function CodFeePage() {
   const [draft, setDraft] = useState<CodFeeDraft>(initialCodFeeDraft);
@@ -43,8 +48,10 @@ function CodFeePage() {
     initialCodPaymentRuleDraft,
   );
   const deliveryRule = useCodDeliveryRule();
+  const shippingMethods = useCodShippingMethods();
   const updateDeliveryRule = useUpdateCodDeliveryRule();
   const paymentRule = useCodPaymentRule();
+  const paymentMethods = useCodPaymentMethods();
   const updatePaymentRule = useUpdateCodPaymentRule();
   const feeSetting = useCodFeeSetting();
   const updateFeeSetting = useUpdateCodFeeSetting();
@@ -242,16 +249,20 @@ function CodFeePage() {
   return (
     <BlockStack gap="500">
       {deliveryRule.error ||
+      shippingMethods.error ||
       updateDeliveryRule.error ||
       paymentRule.error ||
+      paymentMethods.error ||
       updatePaymentRule.error ||
       feeSetting.error ||
       updateFeeSetting.error ? (
         <ErrorBanner
           error={
             deliveryRule.error ||
+            shippingMethods.error ||
             updateDeliveryRule.error ||
             paymentRule.error ||
+            paymentMethods.error ||
             updatePaymentRule.error ||
             feeSetting.error ||
             updateFeeSetting.error
@@ -259,12 +270,35 @@ function CodFeePage() {
         />
       ) : null}
 
+      <ShippingMethodSection
+        draft={draft}
+        setField={setField}
+        methods={shippingMethods.data?.methods || []}
+        nameError={shippingValidation.nameError}
+        isLoading={deliveryRule.isLoading}
+        isSyncing={shippingMethods.isFetching}
+        onSync={() => {
+          void shippingMethods.refetch();
+        }}
+      />
+
       <HideCodShippingMethodSection
         draft={draft}
         setField={setField}
-        nameError={shippingValidation.nameError}
         limitError={shippingValidation.limitError}
         isLoading={deliveryRule.isLoading}
+      />
+
+      <PaymentMethodSection
+        draft={paymentDraft}
+        setDraft={setPaymentDraft}
+        methods={paymentMethods.data?.methods || []}
+        nameError={paymentValidation.nameError}
+        isLoading={paymentRule.isLoading}
+        isSyncing={paymentMethods.isFetching}
+        onSync={() => {
+          void paymentMethods.refetch();
+        }}
       />
 
       <AdvancedCodRulesSection
@@ -274,7 +308,6 @@ function CodFeePage() {
         paymentRule={{
           draft: paymentDraft,
           setDraft: setPaymentDraft,
-          nameError: paymentValidation.nameError,
           limitError: paymentValidation.limitError,
           discountAmountError: paymentValidation.discountAmountError,
           isLoading: paymentRule.isLoading || updatePaymentRule.isPending,
@@ -311,33 +344,39 @@ function CodFeePage() {
   );
 }
 
-function toPaymentRuleInput(rule: CodPaymentRuleDraft | CodPaymentRule) {
+function toPaymentRuleInput(
+  rule: CodPaymentRuleDraft | CodPaymentRule,
+): UpdateCodPaymentRule {
   if (typeof rule.hideBelowOrderTotal === 'string') {
+    const draft = rule as CodPaymentRuleDraft;
+
     return {
-      hideByOrderTotal: rule.hideByOrderTotal,
-      hideDiscountedOrders: rule.hideDiscountedOrders,
-      minimumDiscountAmount: Number(rule.minimumDiscountAmount),
-      paymentMethodName: rule.paymentMethodName.trim(),
+      hideByOrderTotal: draft.hideByOrderTotal,
+      hideDiscountedOrders: draft.hideDiscountedOrders,
+      minimumDiscountAmount: Number(draft.minimumDiscountAmount),
+      paymentMethodName: draft.paymentMethodName.trim(),
       hideBelowOrderTotal:
-        rule.hideBelowOrderTotal === ''
+        draft.hideBelowOrderTotal === ''
           ? null
-          : Number(rule.hideBelowOrderTotal),
+          : Number(draft.hideBelowOrderTotal),
       hideAboveOrderTotal:
-        rule.hideAboveOrderTotal === ''
+        draft.hideAboveOrderTotal === ''
           ? null
-          : Number(rule.hideAboveOrderTotal),
-      advancedRules: toAdvancedRules(rule.advancedRules),
+          : Number(draft.hideAboveOrderTotal),
+      advancedRules: toAdvancedRules(draft.advancedRules),
     };
   }
 
+  const savedRule = rule as CodPaymentRule;
+
   return {
-    hideByOrderTotal: rule.hideByOrderTotal,
-    hideDiscountedOrders: rule.hideDiscountedOrders,
-    minimumDiscountAmount: rule.minimumDiscountAmount,
-    paymentMethodName: rule.paymentMethodName,
-    hideBelowOrderTotal: rule.hideBelowOrderTotal,
-    hideAboveOrderTotal: rule.hideAboveOrderTotal,
-    advancedRules: rule.advancedRules,
+    hideByOrderTotal: savedRule.hideByOrderTotal,
+    hideDiscountedOrders: savedRule.hideDiscountedOrders,
+    minimumDiscountAmount: savedRule.minimumDiscountAmount,
+    paymentMethodName: savedRule.paymentMethodName,
+    hideBelowOrderTotal: savedRule.hideBelowOrderTotal,
+    hideAboveOrderTotal: savedRule.hideAboveOrderTotal,
+    advancedRules: savedRule.advancedRules,
   };
 }
 

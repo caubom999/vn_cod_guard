@@ -18,6 +18,11 @@ export class CodPaymentRuleController {
     return this.paymentRule.get(request.shop.id);
   }
 
+  @Get('methods')
+  getPaymentMethods(@Req() request: AuthenticatedRequest) {
+    return this.paymentRule.getPaymentMethods(request.shop);
+  }
+
   @Put()
   update(
     @Req() request: AuthenticatedRequest,

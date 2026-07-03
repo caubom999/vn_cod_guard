@@ -14,7 +14,6 @@ import type { HideCodPaymentMethodSectionProps } from '../../../types/cod-fee';
 export function HideCodPaymentMethodSection({
   draft,
   setDraft,
-  nameError,
   limitError,
   discountAmountError,
   isLoading,
@@ -120,18 +119,6 @@ export function HideCodPaymentMethodSection({
         </Box>
       </Collapsible>
 
-      <Divider />
-      <TextField
-        label="Payment method name"
-        value={draft.paymentMethodName}
-        onChange={(value) => update('paymentMethodName', value)}
-        autoComplete="off"
-        helpText="All conditions below hide or show this exact payment method name at checkout."
-        error={nameError}
-      />
-      <Text as="p" tone="subdued">
-        These rules target the payment method, not the COD shipping rate.
-      </Text>
     </BlockStack>
   );
 }

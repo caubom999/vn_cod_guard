@@ -21,7 +21,7 @@ services:
       APP_SCHEME: ${APP_SCHEME:-https}
       SHOPIFY_API_KEY: ${SHOPIFY_API_KEY}
       SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET}
-      SHOPIFY_SCOPES: ${SHOPIFY_SCOPES:-read_products,read_orders,write_orders}
+      SHOPIFY_SCOPES: ${SHOPIFY_SCOPES:-read_products,read_orders,write_orders,read_order_edits,write_order_edits,read_delivery_customizations,write_delivery_customizations,read_payment_customizations,write_payment_customizations,read_shipping,read_translations}
       DATABASE_URL: mysql://${MYSQL_APP_USER}:${MYSQL_APP_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
       MYSQL_HOST: ${MYSQL_HOST:-mysql}
       MYSQL_PORT: 3306

@@ -5,6 +5,7 @@ import {
   SET_COD_PAYMENT_ACTIVATION,
   SET_COD_PAYMENT_CONFIGURATION,
 } from '../../graphql/mutation/payment-customization.mutation';
+import { PAYMENT_GATEWAYS } from '../../graphql/query/payment-gateway.query';
 import { ShopifyService } from '../../shopify/shopify.service';
 import { CodPaymentRuleRepository } from './cod-payment-rule.repository';
 
@@ -101,6 +102,58 @@ export class CodPaymentRuleService {
 
   async get(shopId: number) {
     return this.toResponse(await this.rules.getOrCreate(shopId));
+  }
+
+  async getPaymentMethods(shop: Shop) {
+    try {
+      const response = await this.shopify.graphql(
+        shop.domain,
+        PAYMENT_GATEWAYS,
+      );
+      const nodes =
+        (
+          response as {
+            data?: {
+              translatableResources?: {
+                nodes?: Array<{
+                  resourceId?: string;
+                  translatableContent?: Array<{
+                    key?: string;
+                    value?: string;
+                  }>;
+                }>;
+              };
+            };
+          }
+        ).data?.translatableResources?.nodes || [];
+
+      const methods = nodes
+        .map((node) => ({
+          id: node.resourceId || '',
+          name:
+            node.translatableContent
+              ?.find((content) => content.key === 'name')
+              ?.value?.trim() || '',
+        }))
+        .filter(
+          (method, index, all) =>
+            method.id &&
+            method.name &&
+            all.findIndex((item) => item.name === method.name) === index,
+        );
+
+      return { methods };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Shopify error';
+
+      this.logger.warn(
+        `Could not load payment methods for ${shop.domain}: ${message}`,
+      );
+      throw new BadRequestException(
+        `Could not load Shopify payment methods: ${message}`,
+      );
+    }
   }
 
   async update(shop: Shop, dto: UpdateCodPaymentRuleDto) {

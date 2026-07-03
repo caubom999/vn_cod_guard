@@ -13,7 +13,6 @@ import type { HideCodShippingMethodSectionProps } from '../../../types/cod-fee';
 export function HideCodShippingMethodSection({
   draft,
   setField,
-  nameError,
   limitError,
   isLoading,
 }: HideCodShippingMethodSectionProps) {
@@ -52,17 +51,8 @@ export function HideCodShippingMethodSection({
             >
               <BlockStack gap="400">
                 <Text as="p" tone="subdued">
-                  Configure the exact checkout name and allowed order total
-                  range.
+                  Configure the allowed order total range.
                 </Text>
-                <TextField
-                  label="Shipping method name"
-                  value={draft.codShippingMethodName}
-                  onChange={(value) => setField('codShippingMethodName', value)}
-                  autoComplete="off"
-                  helpText="Enter the exact name shown at checkout."
-                  error={nameError}
-                />
 
                 <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
                   <TextField

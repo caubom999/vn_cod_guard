@@ -5,6 +5,7 @@ import {
   SET_COD_DELIVERY_ACTIVATION,
   SET_COD_DELIVERY_CONFIGURATION,
 } from '../../graphql/mutation/delivery-customization.mutation';
+import { DELIVERY_METHODS } from '../../graphql/query/delivery-method.query';
 import { ShopifyService } from '../../shopify/shopify.service';
 import { CodDeliveryRuleRepository } from './cod-delivery-rule.repository';
 
@@ -99,6 +100,67 @@ export class CodDeliveryRuleService {
 
   async get(shopId: number) {
     return this.toResponse(await this.rules.getOrCreate(shopId));
+  }
+
+  async getShippingMethods(shop: Shop) {
+    try {
+      const response = await this.shopify.graphql(
+        shop.domain,
+        DELIVERY_METHODS,
+      );
+      const nodes =
+        (
+          response as {
+            data?: {
+              deliveryProfiles?: {
+                nodes?: Array<{
+                  profileLocationGroups?: Array<{
+                    locationGroupZones?: {
+                      nodes?: Array<{
+                        methodDefinitions?: {
+                          nodes?: Array<{
+                            id?: string;
+                            name?: string;
+                            active?: boolean;
+                          }>;
+                        };
+                      }>;
+                    };
+                  }>;
+                }>;
+              };
+            };
+          }
+        ).data?.deliveryProfiles?.nodes || [];
+
+      const methods = nodes
+        .flatMap((profile) => profile.profileLocationGroups || [])
+        .flatMap((group) => group.locationGroupZones?.nodes || [])
+        .flatMap((zone) => zone.methodDefinitions?.nodes || [])
+        .filter((method) => method.active !== false)
+        .map((method) => ({
+          id: method.id || '',
+          name: method.name?.trim() || '',
+        }))
+        .filter(
+          (method, index, all) =>
+            method.id &&
+            method.name &&
+            all.findIndex((item) => item.name === method.name) === index,
+        );
+
+      return { methods };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Shopify error';
+
+      this.logger.warn(
+        `Could not load shipping methods for ${shop.domain}: ${message}`,
+      );
+      throw new BadRequestException(
+        `Could not load Shopify shipping methods: ${message}`,
+      );
+    }
   }
 
   async update(shop: Shop, dto: UpdateCodDeliveryRuleDto) {
