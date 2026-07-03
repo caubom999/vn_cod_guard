@@ -1,4 +1,5 @@
 import {
+  Autocomplete,
   BlockStack,
   Card,
   Checkbox,
@@ -7,11 +8,12 @@ import {
   Text,
   TextField,
 } from '@shopify/polaris';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type {
   AdvancedCodRulesSectionProps,
   CodPaymentAdvancedRuleDraft,
 } from '../../../types/cod-fee';
+import { COUNTRY_OPTIONS } from '../country-options';
 import { HideCodPaymentMethodSection } from './HideCodPaymentMethodSection';
 
 type ListRuleKey = {
@@ -123,18 +125,18 @@ export function AdvancedCodRulesSection({
         title="Limit COD payment by location"
         description="Control COD availability for countries, provinces, and postal codes."
       >
-        {listRule({
-          ruleKey: 'hideCountries',
-          label: 'Hide COD payment for one or more countries',
-          placeholder: 'VN, US',
-          helpText: 'Use two-letter country codes separated by commas.',
-        })}
-        {listRule({
-          ruleKey: 'requireCountries',
-          label: 'Show COD payment only for specific countries',
-          placeholder: 'VN',
-          helpText: 'Use two-letter country codes separated by commas.',
-        })}
+        <CountryCodeRule
+          label="Hide COD payment for one or more countries"
+          value={rules.hideCountries}
+          disabled={disabled}
+          onChange={(value) => setRule('hideCountries', value)}
+        />
+        <CountryCodeRule
+          label="Show COD payment only for specific countries"
+          value={rules.requireCountries}
+          disabled={disabled}
+          onChange={(value) => setRule('requireCountries', value)}
+        />
         <Divider />
         {listRule({
           ruleKey: 'hideProvinces',
@@ -246,6 +248,97 @@ export function AdvancedCodRulesSection({
           disabled={disabled}
         />
       </RuleSection>
+    </BlockStack>
+  );
+}
+
+function CountryCodeRule({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const selected = useMemo(
+    () =>
+      value
+        .split(',')
+        .map((code) => code.trim().toUpperCase())
+        .filter(Boolean),
+    [value],
+  );
+  const [expanded, setExpanded] = useState(Boolean(selected.length));
+  const [search, setSearch] = useState('');
+  const options = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) {
+      return COUNTRY_OPTIONS;
+    }
+
+    return COUNTRY_OPTIONS.filter(
+      (option) =>
+        option.value.toLowerCase().includes(query) ||
+        option.label.toLowerCase().includes(query),
+    );
+  }, [search]);
+  const selectedLabels = selected.map(
+    (code) =>
+      COUNTRY_OPTIONS.find((option) => option.value === code)?.label || code,
+  );
+  const checked = expanded || selected.length > 0;
+
+  return (
+    <BlockStack gap="200">
+      <Checkbox
+        label={label}
+        checked={checked}
+        disabled={disabled}
+        onChange={(nextChecked) => {
+          setExpanded(nextChecked);
+
+          if (!nextChecked) {
+            onChange('');
+            setSearch('');
+          }
+        }}
+      />
+      {checked ? (
+        <Autocomplete
+          allowMultiple
+          options={options}
+          selected={selected}
+          onSelect={(codes) => {
+            onChange(codes.join(', '));
+            setSearch('');
+          }}
+          emptyState={
+            <Text as="p" tone="subdued">
+              No countries found
+            </Text>
+          }
+          textField={
+            <Autocomplete.TextField
+              label={label}
+              labelHidden
+              value={search}
+              onChange={setSearch}
+              placeholder="Search by country name or code"
+              autoComplete="off"
+              disabled={disabled}
+              helpText={
+                selectedLabels.length
+                  ? `Selected: ${selectedLabels.join(', ')}`
+                  : 'Select one or more countries. ISO two-letter codes will be saved.'
+              }
+            />
+          }
+        />
+      ) : null}
     </BlockStack>
   );
 }
