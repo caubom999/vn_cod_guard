@@ -50,7 +50,7 @@ export class RiskService {
       }
 
       score += action.score;
-      reasons.push('rule:' + action.reason);
+      reasons.push(`rule:${action.score}:${action.reason}`);
     }
 
     return {

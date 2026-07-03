@@ -197,6 +197,34 @@ export function useRiskRules() {
   });
 }
 
+export function useUpdateRiskRule() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...updates
+    }: {
+      id: number;
+      enabled: boolean;
+      conditionJson: unknown;
+      actionJson: unknown;
+    }) =>
+      api<RiskRule>('/api/cod/risk/rules/' + id, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      }),
+    onSuccess: (updatedRule) => {
+      queryClient.setQueryData<RiskRule[]>(['risk-rules'], (rules = []) =>
+        rules.map((rule) =>
+          rule.id === updatedRule.id ? updatedRule : rule,
+        ),
+      );
+    },
+  });
+}
+
 export function useBlacklist() {
   const api = useApi();
 
