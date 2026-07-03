@@ -9,18 +9,12 @@
             "amount": "1500000"
           }
         },
-        "discountApplications": [],
-        "buyerIdentity": null,
-        "lines": [],
         "deliveryGroups": [
           {
-            "deliveryAddress": null,
             "deliveryOptions": [
               {
                 "handle": "cod",
-                "title": "standard - cash on delivery",
-                "code": "cod",
-                "deliveryMethodType": "SHIPPING"
+                "title": "standard - cash on delivery"
               }
             ]
           }

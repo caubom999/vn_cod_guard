@@ -2,42 +2,76 @@ import type { Dispatch, SetStateAction } from 'react';
 
 export type FeeType = 'fixed' | 'percentage';
 
+export type CodShippingMethod = {
+  id: string;
+  name: string;
+};
+
+export type CodPaymentMethod = {
+  id: string;
+  name: string;
+};
+
+export type CodProduct = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  imageAlt: string;
+};
+
+export type CodCollection = {
+  id: string;
+  title: string;
+  imageUrl: string | null;
+  imageAlt: string;
+};
+
 export type CodPaymentRule = {
   id: number;
   shopId: number;
   enabled: boolean;
+  hideByOrderTotal: boolean;
+  hideDiscountedOrders: boolean;
+  minimumDiscountAmount: number;
   paymentMethodName: string;
   hideBelowOrderTotal: number | null;
   hideAboveOrderTotal: number | null;
+  advancedRules: CodPaymentAdvancedRules;
+  configurationVersion: number;
   shopifyConfigured: boolean;
   updatedAt: string;
 };
 
 export type UpdateCodPaymentRule = Pick<
   CodPaymentRule,
-  | 'enabled'
+  | 'hideByOrderTotal'
+  | 'hideDiscountedOrders'
+  | 'minimumDiscountAmount'
   | 'paymentMethodName'
   | 'hideBelowOrderTotal'
   | 'hideAboveOrderTotal'
+  | 'advancedRules'
 >;
 
 export type CodPaymentRuleDraft = {
-  enabled: boolean;
+  hideByOrderTotal: boolean;
+  hideDiscountedOrders: boolean;
+  minimumDiscountAmount: string;
   paymentMethodName: string;
   hideBelowOrderTotal: string;
   hideAboveOrderTotal: string;
+  advancedRules: CodPaymentAdvancedRuleDraft;
 };
 
 export type HideCodPaymentMethodSectionProps = {
   draft: CodPaymentRuleDraft;
   setDraft: Dispatch<SetStateAction<CodPaymentRuleDraft>>;
-  nameError?: string;
   limitError?: string;
+  discountAmountError?: string;
   isLoading: boolean;
 };
 
-export type CodDeliveryAdvancedRules = {
-  hideDiscountedOrders: boolean;
+export type CodPaymentAdvancedRules = {
   hideCustomerTags: string[];
   requireCustomerTags: string[];
   hideCustomerEmails: string[];
@@ -62,8 +96,8 @@ export type CodDeliveryAdvancedRules = {
   requireLocalDelivery: boolean;
 };
 
-export type CodDeliveryAdvancedRuleDraft = {
-  [K in keyof CodDeliveryAdvancedRules]: CodDeliveryAdvancedRules[K] extends boolean
+export type CodPaymentAdvancedRuleDraft = {
+  [K in keyof CodPaymentAdvancedRules]: CodPaymentAdvancedRules[K] extends boolean
     ? boolean
     : string;
 };
@@ -73,7 +107,6 @@ export type CodFeeDraft = {
   codShippingMethodName: string;
   hideBelowOrderTotal: string;
   hideAboveOrderTotal: string;
-  advancedDeliveryRules: CodDeliveryAdvancedRuleDraft;
   feeEnabled: boolean;
   feeType: FeeType;
   feeAmount: string;
@@ -92,23 +125,42 @@ export type CodFeeFieldUpdater = <K extends keyof CodFeeDraft>(
 export type HideCodShippingMethodSectionProps = {
   draft: CodFeeDraft;
   setField: CodFeeFieldUpdater;
-  nameError?: string;
   limitError?: string;
   isLoading: boolean;
 };
 
-export type CodDeliveryAdvancedRuleUpdater = <
-  K extends keyof CodDeliveryAdvancedRuleDraft,
+export type ShippingMethodSectionProps = {
+  draft: CodFeeDraft;
+  setField: CodFeeFieldUpdater;
+  methods: CodShippingMethod[];
+  nameError?: string;
+  isLoading: boolean;
+  isSyncing: boolean;
+  onSync: () => void;
+};
+
+export type CodPaymentAdvancedRuleUpdater = <
+  K extends keyof CodPaymentAdvancedRuleDraft,
 >(
   key: K,
-  value: CodDeliveryAdvancedRuleDraft[K],
+  value: CodPaymentAdvancedRuleDraft[K],
 ) => void;
 
 export type AdvancedCodRulesSectionProps = {
-  rules: CodDeliveryAdvancedRuleDraft;
-  setRule: CodDeliveryAdvancedRuleUpdater;
+  rules: CodPaymentAdvancedRuleDraft;
+  setRule: CodPaymentAdvancedRuleUpdater;
   disabled: boolean;
   paymentRule: HideCodPaymentMethodSectionProps;
+};
+
+export type PaymentMethodSectionProps = {
+  draft: CodPaymentRuleDraft;
+  setDraft: Dispatch<SetStateAction<CodPaymentRuleDraft>>;
+  methods: CodPaymentMethod[];
+  nameError?: string;
+  isLoading: boolean;
+  isSyncing: boolean;
+  onSync: () => void;
 };
 
 export type CodDeliveryRuleSaveBarProps = {

@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const DEFAULT_DISPLAY_MESSAGE =
-  'COD fee will be added for cash on delivery orders.';
+  'A COD fee will be added to this order.';
 
 @Injectable()
 export class CodFeeRepository {

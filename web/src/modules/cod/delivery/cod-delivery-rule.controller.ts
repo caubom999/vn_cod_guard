@@ -18,6 +18,11 @@ export class CodDeliveryRuleController {
     return this.deliveryRule.get(request.shop.id);
   }
 
+  @Get('methods')
+  getShippingMethods(@Req() request: AuthenticatedRequest) {
+    return this.deliveryRule.getShippingMethods(request.shop);
+  }
+
   @Put()
   update(
     @Req() request: AuthenticatedRequest,

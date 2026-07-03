@@ -119,7 +119,7 @@ export function Template1Preview({ draft }: { draft: TemplatePreviewDraft }) {
               Thanh toan khi nhan hang
             </p>
             <p className="mb-3.5 mt-0 text-[13px] leading-snug text-black">
-              Phuong thuc: Cash on Delivery (COD)
+              Phuong thuc: COD
             </p>
             <p className="mb-3.5 mt-0 text-[13px] leading-snug text-black">
               Trang thai: <span className="text-[#27ae60]">Cho xac nhan COD</span>

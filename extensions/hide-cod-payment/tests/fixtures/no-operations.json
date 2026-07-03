@@ -8,7 +8,10 @@
           "totalAmount": {
             "amount": "500000"
           }
-        }
+        },
+        "buyerIdentity": null,
+        "lines": [],
+        "deliveryGroups": []
       },
       "paymentMethods": [
         {

@@ -1,0 +1,53 @@
+{
+  "payload": {
+    "export": "cart-payment-methods-transform-run",
+    "target": "cart.payment-methods.transform.run",
+    "input": {
+      "cart": {
+        "cost": {
+          "totalAmount": {
+            "amount": "200000"
+          }
+        },
+        "buyerIdentity": null,
+        "lines": [],
+        "deliveryGroups": [
+          {
+            "deliveryAddress": {
+              "countryCode": "VN",
+              "provinceCode": "HN",
+              "zip": "100000"
+            },
+            "selectedDeliveryOption": null
+          }
+        ]
+      },
+      "paymentMethods": [
+        {
+          "id": "gid://shopify/PaymentCustomizationPaymentMethod/1",
+          "name": "Cash on Delivery (COD)"
+        }
+      ],
+      "paymentCustomization": {
+        "metafield": {
+          "jsonValue": {
+            "enabled": true,
+            "paymentMethodName": "Cash on Delivery (COD)",
+            "advancedRules": {
+              "hideCountries": ["VN"]
+            }
+          }
+        }
+      }
+    },
+    "output": {
+      "operations": [
+        {
+          "paymentMethodHide": {
+            "paymentMethodId": "gid://shopify/PaymentCustomizationPaymentMethod/1"
+          }
+        }
+      ]
+    }
+  }
+}

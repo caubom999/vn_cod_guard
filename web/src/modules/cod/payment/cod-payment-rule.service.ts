@@ -5,6 +5,9 @@ import {
   SET_COD_PAYMENT_ACTIVATION,
   SET_COD_PAYMENT_CONFIGURATION,
 } from '../../graphql/mutation/payment-customization.mutation';
+import { COD_COLLECTIONS } from '../../graphql/query/collection.query';
+import { PAYMENT_GATEWAYS } from '../../graphql/query/payment-gateway.query';
+import { COD_PRODUCTS } from '../../graphql/query/product.query';
 import { ShopifyService } from '../../shopify/shopify.service';
 import { CodPaymentRuleRepository } from './cod-payment-rule.repository';
 
@@ -12,11 +15,64 @@ const FUNCTION_HANDLE = 'hide-cod-payment';
 const METAFIELD_NAMESPACE = '$app:hide-cod-payment';
 const METAFIELD_KEY = 'function-configuration';
 
+export type CodPaymentAdvancedRules = {
+  hideCustomerTags: string[];
+  requireCustomerTags: string[];
+  hideCustomerEmails: string[];
+  hideCustomerPhones: string[];
+  hideCountries: string[];
+  requireCountries: string[];
+  hideProvinces: string[];
+  requireProvinces: string[];
+  hidePostalCodes: string[];
+  requirePostalCodes: string[];
+  hideProductIds: string[];
+  hideGiftCards: boolean;
+  hideCollectionIds: string[];
+  requireCollectionIds: string[];
+  hideProductVendors: string[];
+  requireProductVendors: string[];
+  hideShippingRates: string[];
+  requireShippingRates: string[];
+  hideLocalPickup: boolean;
+  requireLocalPickup: boolean;
+  hideLocalDelivery: boolean;
+  requireLocalDelivery: boolean;
+};
+
+const DEFAULT_ADVANCED_RULES: CodPaymentAdvancedRules = {
+  hideCustomerTags: [],
+  requireCustomerTags: [],
+  hideCustomerEmails: [],
+  hideCustomerPhones: [],
+  hideCountries: [],
+  requireCountries: [],
+  hideProvinces: [],
+  requireProvinces: [],
+  hidePostalCodes: [],
+  requirePostalCodes: [],
+  hideProductIds: [],
+  hideGiftCards: false,
+  hideCollectionIds: [],
+  requireCollectionIds: [],
+  hideProductVendors: [],
+  requireProductVendors: [],
+  hideShippingRates: [],
+  requireShippingRates: [],
+  hideLocalPickup: false,
+  requireLocalPickup: false,
+  hideLocalDelivery: false,
+  requireLocalDelivery: false,
+};
+
 export type UpdateCodPaymentRuleDto = {
-  enabled?: boolean;
+  hideByOrderTotal?: boolean;
+  hideDiscountedOrders?: boolean;
+  minimumDiscountAmount?: number;
   paymentMethodName?: string;
   hideBelowOrderTotal?: number | null;
   hideAboveOrderTotal?: number | null;
+  advancedRules?: Partial<CodPaymentAdvancedRules>;
 };
 
 type PaymentCustomizationPayload = {
@@ -50,6 +106,206 @@ export class CodPaymentRuleService {
     return this.toResponse(await this.rules.getOrCreate(shopId));
   }
 
+  async getPaymentMethods(shop: Shop) {
+    try {
+      const response = await this.shopify.graphql(
+        shop.domain,
+        PAYMENT_GATEWAYS,
+      );
+      const nodes =
+        (
+          response as {
+            data?: {
+              translatableResources?: {
+                nodes?: Array<{
+                  resourceId?: string;
+                  translatableContent?: Array<{
+                    key?: string;
+                    value?: string;
+                  }>;
+                }>;
+              };
+            };
+          }
+        ).data?.translatableResources?.nodes || [];
+
+      const methods = nodes
+        .map((node) => ({
+          id: node.resourceId || '',
+          name:
+            node.translatableContent
+              ?.find((content) => content.key === 'name')
+              ?.value?.trim() || '',
+        }))
+        .filter(
+          (method, index, all) =>
+            method.id &&
+            method.name &&
+            all.findIndex((item) => item.name === method.name) === index,
+        );
+
+      return { methods };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Shopify error';
+
+      this.logger.warn(
+        `Could not load payment methods for ${shop.domain}: ${message}`,
+      );
+      throw new BadRequestException(
+        `Could not load Shopify payment methods: ${message}`,
+      );
+    }
+  }
+
+  async getProducts(shop: Shop, ids: string[] = []) {
+    const productIds = [
+      ...new Set(
+        ids.filter(
+          (id): id is string =>
+            typeof id === 'string' &&
+            /^gid:\/\/shopify\/Product\/\d+$/.test(id),
+        ),
+      ),
+    ];
+
+    if (productIds.length > 50) {
+      throw new BadRequestException('Select no more than 50 products');
+    }
+
+    if (!productIds.length) {
+      return { products: [] };
+    }
+
+    try {
+      const response = await this.shopify.graphql(shop.domain, COD_PRODUCTS, {
+        ids: productIds,
+      });
+      const nodes =
+        (
+          response as {
+            data?: {
+              nodes?: Array<{
+                id?: string;
+                title?: string;
+                featuredImage?: {
+                  url?: string;
+                  altText?: string | null;
+                } | null;
+              } | null>;
+            };
+          }
+        ).data?.nodes || [];
+
+      return {
+        products: nodes
+          .filter(
+            (
+              product,
+            ): product is {
+              id: string;
+              title?: string;
+              featuredImage?: {
+                url?: string;
+                altText?: string | null;
+              } | null;
+            } => Boolean(product?.id),
+          )
+          .map((product) => ({
+            id: product.id,
+            title: product.title || 'Untitled product',
+            imageUrl: product.featuredImage?.url || null,
+            imageAlt: product.featuredImage?.altText || product.title || '',
+          })),
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Shopify error';
+
+      this.logger.warn(
+        `Could not load products for ${shop.domain}: ${message}`,
+      );
+      throw new BadRequestException(
+        `Could not load Shopify products: ${message}`,
+      );
+    }
+  }
+
+  async getCollections(shop: Shop, ids: string[] = []) {
+    const collectionIds = [
+      ...new Set(
+        ids.filter(
+          (id): id is string =>
+            typeof id === 'string' &&
+            /^gid:\/\/shopify\/Collection\/\d+$/.test(id),
+        ),
+      ),
+    ];
+
+    if (collectionIds.length > 50) {
+      throw new BadRequestException('Select no more than 50 collections');
+    }
+
+    if (!collectionIds.length) {
+      return { collections: [] };
+    }
+
+    try {
+      const response = await this.shopify.graphql(
+        shop.domain,
+        COD_COLLECTIONS,
+        { ids: collectionIds },
+      );
+      const nodes =
+        (
+          response as {
+            data?: {
+              nodes?: Array<{
+                id?: string;
+                title?: string;
+                image?: {
+                  url?: string;
+                  altText?: string | null;
+                } | null;
+              } | null>;
+            };
+          }
+        ).data?.nodes || [];
+
+      return {
+        collections: nodes
+          .filter(
+            (
+              collection,
+            ): collection is {
+              id: string;
+              title?: string;
+              image?: {
+                url?: string;
+                altText?: string | null;
+              } | null;
+            } => Boolean(collection?.id),
+          )
+          .map((collection) => ({
+            id: collection.id,
+            title: collection.title || 'Untitled collection',
+            imageUrl: collection.image?.url || null,
+            imageAlt: collection.image?.altText || collection.title || '',
+          })),
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Shopify error';
+
+      this.logger.warn(
+        `Could not load collections for ${shop.domain}: ${message}`,
+      );
+      throw new BadRequestException(
+        `Could not load Shopify collections: ${message}`,
+      );
+    }
+  }
+
   async update(shop: Shop, dto: UpdateCodPaymentRuleDto) {
     const current = await this.rules.getOrCreate(shop.id);
     const validated = this.validate(dto, current);
@@ -57,14 +313,33 @@ export class CodPaymentRuleService {
     const saved = await this.rules.update(shop.id, {
       ...validated,
       ...synced,
+      configurationVersion: 2,
     });
 
     return this.toResponse(saved);
   }
 
   private validate(dto: UpdateCodPaymentRuleDto, current: CodPaymentRule) {
+    const hideByOrderTotal =
+      typeof dto.hideByOrderTotal === 'boolean'
+        ? dto.hideByOrderTotal
+        : current.hideByOrderTotal;
+    const hideDiscountedOrders =
+      typeof dto.hideDiscountedOrders === 'boolean'
+        ? dto.hideDiscountedOrders
+        : current.hideDiscountedOrders;
+    const minimumDiscountAmount =
+      dto.minimumDiscountAmount === undefined
+        ? current.minimumDiscountAmount.toNumber()
+        : dto.minimumDiscountAmount;
+    const advancedRules = this.validateAdvancedRules(
+      dto.advancedRules,
+      this.getAdvancedRules(current.advancedRulesJson),
+    );
     const enabled =
-      typeof dto.enabled === 'boolean' ? dto.enabled : current.enabled;
+      hideByOrderTotal ||
+      hideDiscountedOrders ||
+      this.hasAdvancedRule(advancedRules);
     const paymentMethodName =
       dto.paymentMethodName === undefined
         ? current.paymentMethodName
@@ -97,7 +372,7 @@ export class CodPaymentRuleService {
     }
 
     if (
-      enabled &&
+      hideByOrderTotal &&
       hideBelowOrderTotal === null &&
       hideAboveOrderTotal === null
     ) {
@@ -106,8 +381,21 @@ export class CodPaymentRuleService {
       );
     }
 
+    if (
+      !Number.isFinite(minimumDiscountAmount) ||
+      minimumDiscountAmount < 0 ||
+      minimumDiscountAmount > 999999999999
+    ) {
+      throw new BadRequestException(
+        'Minimum discount amount must be a valid positive amount',
+      );
+    }
+
     return {
       enabled,
+      hideByOrderTotal,
+      hideDiscountedOrders,
+      minimumDiscountAmount: new Prisma.Decimal(minimumDiscountAmount),
       paymentMethodName,
       hideBelowOrderTotal:
         hideBelowOrderTotal === null
@@ -117,7 +405,93 @@ export class CodPaymentRuleService {
         hideAboveOrderTotal === null
           ? null
           : new Prisma.Decimal(hideAboveOrderTotal),
+      advancedRulesJson: advancedRules as unknown as Prisma.InputJsonValue,
     };
+  }
+
+  private validateAdvancedRules(
+    value: Partial<CodPaymentAdvancedRules> | undefined,
+    current: CodPaymentAdvancedRules,
+  ): CodPaymentAdvancedRules {
+    const source = value || current;
+    const booleanKeys = [
+      'hideGiftCards',
+      'hideLocalPickup',
+      'requireLocalPickup',
+      'hideLocalDelivery',
+      'requireLocalDelivery',
+    ] as const;
+    const listKeys = [
+      'hideCustomerTags',
+      'requireCustomerTags',
+      'hideCustomerEmails',
+      'hideCustomerPhones',
+      'hideCountries',
+      'requireCountries',
+      'hideProvinces',
+      'requireProvinces',
+      'hidePostalCodes',
+      'requirePostalCodes',
+      'hideProductIds',
+      'hideCollectionIds',
+      'requireCollectionIds',
+      'hideProductVendors',
+      'requireProductVendors',
+      'hideShippingRates',
+      'requireShippingRates',
+    ] as const;
+    const result = { ...DEFAULT_ADVANCED_RULES };
+
+    for (const key of booleanKeys) {
+      result[key] =
+        typeof source[key] === 'boolean' ? source[key] : current[key];
+    }
+
+    for (const key of listKeys) {
+      const list = source[key];
+
+      if (!Array.isArray(list)) {
+        result[key] = current[key];
+        continue;
+      }
+
+      const cleaned = [
+        ...new Set(
+          list
+            .filter((item): item is string => typeof item === 'string')
+            .map((item) => item.trim())
+            .filter(Boolean),
+        ),
+      ];
+
+      if (cleaned.length > 100 || cleaned.some((item) => item.length > 255)) {
+        throw new BadRequestException(
+          `${key} supports up to 100 values of 255 characters each`,
+        );
+      }
+
+      if (
+        (key === 'hideCollectionIds' || key === 'requireCollectionIds') &&
+        cleaned.some((item) => !/^gid:\/\/shopify\/Collection\/\d+$/.test(item))
+      ) {
+        throw new BadRequestException(
+          `${key} values must be Shopify collection GIDs`,
+        );
+      }
+
+      if (
+        key === 'hideProductIds' &&
+        cleaned.some((item) => !/^gid:\/\/shopify\/Product\/\d+$/.test(item))
+      ) {
+        throw new BadRequestException(
+          'hideProductIds values must be Shopify product GIDs',
+        );
+      }
+
+      result[key] = cleaned;
+    }
+
+    return result;
   }
 
   private amountOrNull(
@@ -145,20 +519,33 @@ export class CodPaymentRuleService {
     current: CodPaymentRule,
     rule: {
       enabled: boolean;
+      hideByOrderTotal: boolean;
+      hideDiscountedOrders: boolean;
+      minimumDiscountAmount: Prisma.Decimal;
       paymentMethodName: string;
       hideBelowOrderTotal: Prisma.Decimal | null;
       hideAboveOrderTotal: Prisma.Decimal | null;
+      advancedRulesJson: Prisma.InputJsonValue;
     },
   ) {
     if (!rule.enabled && !current.shopifyPaymentCustomizationId) {
       return {};
     }
 
+    const advancedRules = this.getAdvancedRules(rule.advancedRulesJson);
     const configurationValue = JSON.stringify({
       enabled: rule.enabled,
+      hideByOrderTotal: rule.hideByOrderTotal,
+      hideDiscountedOrders: rule.hideDiscountedOrders,
+      minimumDiscountAmount: rule.minimumDiscountAmount.toNumber(),
       paymentMethodName: rule.paymentMethodName,
       hideBelowOrderTotal: rule.hideBelowOrderTotal?.toNumber() ?? null,
       hideAboveOrderTotal: rule.hideAboveOrderTotal?.toNumber() ?? null,
+      advancedRules,
+      hideCustomerTags: advancedRules.hideCustomerTags,
+      requireCustomerTags: advancedRules.requireCustomerTags,
+      hideCollectionIds: advancedRules.hideCollectionIds,
+      requireCollectionIds: advancedRules.requireCollectionIds,
     });
 
     try {
@@ -326,11 +713,35 @@ export class CodPaymentRuleService {
       id: rule.id,
       shopId: rule.shopId,
       enabled: rule.enabled,
+      hideByOrderTotal: rule.hideByOrderTotal,
+      hideDiscountedOrders: rule.hideDiscountedOrders,
+      minimumDiscountAmount: rule.minimumDiscountAmount.toNumber(),
       paymentMethodName: rule.paymentMethodName,
       hideBelowOrderTotal: rule.hideBelowOrderTotal?.toNumber() ?? null,
       hideAboveOrderTotal: rule.hideAboveOrderTotal?.toNumber() ?? null,
+      advancedRules: this.getAdvancedRules(rule.advancedRulesJson),
+      configurationVersion: rule.configurationVersion,
       shopifyConfigured: Boolean(rule.shopifyPaymentCustomizationId),
       updatedAt: rule.updatedAt,
     };
+  }
+
+  private getAdvancedRules(
+    value: Prisma.JsonValue | Prisma.InputJsonValue | null,
+  ): CodPaymentAdvancedRules {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return { ...DEFAULT_ADVANCED_RULES };
+    }
+
+    return this.validateAdvancedRules(
+      value as Partial<CodPaymentAdvancedRules>,
+      DEFAULT_ADVANCED_RULES,
+    );
+  }
+
+  private hasAdvancedRule(rules: CodPaymentAdvancedRules) {
+    return Object.values(rules).some(
+      (value) => value === true || (Array.isArray(value) && value.length > 0),
+    );
   }
 }

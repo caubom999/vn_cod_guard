@@ -5,6 +5,7 @@ import {
   SET_COD_DELIVERY_ACTIVATION,
   SET_COD_DELIVERY_CONFIGURATION,
 } from '../../graphql/mutation/delivery-customization.mutation';
+import { DELIVERY_METHODS } from '../../graphql/query/delivery-method.query';
 import { ShopifyService } from '../../shopify/shopify.service';
 import { CodDeliveryRuleRepository } from './cod-delivery-rule.repository';
 
@@ -13,7 +14,6 @@ const METAFIELD_NAMESPACE = '$app:hide-cod-delivery';
 const METAFIELD_KEY = 'function-configuration';
 
 export type CodDeliveryAdvancedRules = {
-  hideDiscountedOrders: boolean;
   hideCustomerTags: string[];
   requireCustomerTags: string[];
   hideCustomerEmails: string[];
@@ -39,7 +39,6 @@ export type CodDeliveryAdvancedRules = {
 };
 
 const DEFAULT_ADVANCED_RULES: CodDeliveryAdvancedRules = {
-  hideDiscountedOrders: false,
   hideCustomerTags: [],
   requireCustomerTags: [],
   hideCustomerEmails: [],
@@ -103,6 +102,67 @@ export class CodDeliveryRuleService {
     return this.toResponse(await this.rules.getOrCreate(shopId));
   }
 
+  async getShippingMethods(shop: Shop) {
+    try {
+      const response = await this.shopify.graphql(
+        shop.domain,
+        DELIVERY_METHODS,
+      );
+      const nodes =
+        (
+          response as {
+            data?: {
+              deliveryProfiles?: {
+                nodes?: Array<{
+                  profileLocationGroups?: Array<{
+                    locationGroupZones?: {
+                      nodes?: Array<{
+                        methodDefinitions?: {
+                          nodes?: Array<{
+                            id?: string;
+                            name?: string;
+                            active?: boolean;
+                          }>;
+                        };
+                      }>;
+                    };
+                  }>;
+                }>;
+              };
+            };
+          }
+        ).data?.deliveryProfiles?.nodes || [];
+
+      const methods = nodes
+        .flatMap((profile) => profile.profileLocationGroups || [])
+        .flatMap((group) => group.locationGroupZones?.nodes || [])
+        .flatMap((zone) => zone.methodDefinitions?.nodes || [])
+        .filter((method) => method.active !== false)
+        .map((method) => ({
+          id: method.id || '',
+          name: method.name?.trim() || '',
+        }))
+        .filter(
+          (method, index, all) =>
+            method.id &&
+            method.name &&
+            all.findIndex((item) => item.name === method.name) === index,
+        );
+
+      return { methods };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown Shopify error';
+
+      this.logger.warn(
+        `Could not load shipping methods for ${shop.domain}: ${message}`,
+      );
+      throw new BadRequestException(
+        `Could not load Shopify shipping methods: ${message}`,
+      );
+    }
+  }
+
   async update(shop: Shop, dto: UpdateCodDeliveryRuleDto) {
     const current = await this.rules.getOrCreate(shop.id);
     const validated = this.validate(dto, current);
@@ -132,11 +192,6 @@ export class CodDeliveryRuleService {
       current.hideAboveOrderTotal,
       'hideAboveOrderTotal',
     );
-    const advancedRules = this.validateAdvancedRules(
-      dto.advancedRules,
-      this.getAdvancedRules(current.advancedRulesJson),
-    );
-
     if (!shippingMethodName || shippingMethodName.length > 255) {
       throw new BadRequestException(
         'Shipping method name is required and must be 255 characters or fewer',
@@ -156,8 +211,7 @@ export class CodDeliveryRuleService {
     if (
       enabled &&
       hideBelowOrderTotal === null &&
-      hideAboveOrderTotal === null &&
-      !this.hasAdvancedRule(advancedRules)
+      hideAboveOrderTotal === null
     ) {
       throw new BadRequestException(
         'Configure at least one condition before enabling the rule',
@@ -175,7 +229,6 @@ export class CodDeliveryRuleService {
         hideAboveOrderTotal === null
           ? null
           : new Prisma.Decimal(hideAboveOrderTotal),
-      advancedRulesJson: advancedRules as unknown as Prisma.InputJsonValue,
     };
   }
 
@@ -185,7 +238,6 @@ export class CodDeliveryRuleService {
   ): CodDeliveryAdvancedRules {
     const source = value || current;
     const booleanKeys = [
-      'hideDiscountedOrders',
       'hideGiftCards',
       'hideLocalPickup',
       'requireLocalPickup',
@@ -293,24 +345,17 @@ export class CodDeliveryRuleService {
       shippingMethodName: string;
       hideBelowOrderTotal: Prisma.Decimal | null;
       hideAboveOrderTotal: Prisma.Decimal | null;
-      advancedRulesJson: Prisma.InputJsonValue;
     },
   ) {
     if (!rule.enabled && !current.shopifyDeliveryCustomizationId) {
       return {};
     }
 
-    const advancedRules = this.getAdvancedRules(rule.advancedRulesJson);
     const configurationValue = JSON.stringify({
       enabled: rule.enabled,
       shippingMethodName: rule.shippingMethodName,
       hideBelowOrderTotal: rule.hideBelowOrderTotal?.toNumber() ?? null,
       hideAboveOrderTotal: rule.hideAboveOrderTotal?.toNumber() ?? null,
-      advancedRules,
-      hideCustomerTags: advancedRules.hideCustomerTags,
-      requireCustomerTags: advancedRules.requireCustomerTags,
-      hideCollectionIds: advancedRules.hideCollectionIds,
-      requireCollectionIds: advancedRules.requireCollectionIds,
     });
     const createMetafield = {
       namespace: METAFIELD_NAMESPACE,

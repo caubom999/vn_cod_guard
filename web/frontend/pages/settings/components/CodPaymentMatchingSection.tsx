@@ -11,7 +11,7 @@ export function CodPaymentMatchingSection({
   return (
     <SettingsSection
       title="COD payment matching"
-      description="Match Shopify payment gateway names that should be treated as cash on delivery."
+      description="Match Shopify payment gateway names that should be treated as COD."
     >
       <Card>
         <TextField

@@ -1,5 +1,6 @@
 import {
   BlockStack,
+  Box,
   Card,
   Checkbox,
   Collapsible,
@@ -13,7 +14,6 @@ import type { HideCodShippingMethodSectionProps } from '../../../types/cod-fee';
 export function HideCodShippingMethodSection({
   draft,
   setField,
-  nameError,
   limitError,
   isLoading,
 }: HideCodShippingMethodSectionProps) {
@@ -34,68 +34,65 @@ export function HideCodShippingMethodSection({
       </BlockStack>
 
       <Card>
-        <BlockStack gap="300">
-          <Checkbox
-            label="Limit COD shipping method"
-            checked={draft.hideCodShippingMethod}
-            onChange={(value) => setField('hideCodShippingMethod', value)}
-            disabled={isLoading}
-          />
+        <Box paddingBlock="100">
+          <BlockStack gap="300">
+            <Checkbox
+              label="Hide COD shipping method"
+              checked={draft.hideCodShippingMethod}
+              onChange={(value) => setField('hideCodShippingMethod', value)}
+              disabled={isLoading}
+            />
 
-          {isLoading ? (
-            <SkeletonBodyText lines={3} />
-          ) : (
-            <Collapsible
-              open={draft.hideCodShippingMethod}
-              id="cod-shipping-method-settings"
-              transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}
-            >
-              <BlockStack gap="400">
-                <Text as="p" tone="subdued">
-                  Configure the exact checkout name and allowed order total
-                  range.
-                </Text>
-                <TextField
-                  label="Shipping method name"
-                  value={draft.codShippingMethodName}
-                  onChange={(value) => setField('codShippingMethodName', value)}
-                  autoComplete="off"
-                  helpText="Enter the exact name shown at checkout."
-                  error={nameError}
-                />
+            {isLoading ? (
+              <SkeletonBodyText lines={3} />
+            ) : (
+              <Collapsible
+                open={draft.hideCodShippingMethod}
+                id="cod-shipping-method-settings"
+                transition={{ duration: '200ms', timingFunction: 'ease-in-out' }}
+              >
+                <BlockStack gap="400">
+                  <Text as="p" tone="subdued">
+                    Configure the allowed order total range.
+                  </Text>
 
-                <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-                  <TextField
-                    label="Hide when order total is less than"
-                    value={draft.hideBelowOrderTotal}
-                    onChange={(value) => setField('hideBelowOrderTotal', value)}
-                    type="number"
-                    min={0}
-                    autoComplete="off"
-                    suffix="VND"
-                    placeholder="No lower limit"
-                  />
-                  <TextField
-                    label="Hide when order total is greater than"
-                    value={draft.hideAboveOrderTotal}
-                    onChange={(value) => setField('hideAboveOrderTotal', value)}
-                    type="number"
-                    min={0}
-                    autoComplete="off"
-                    suffix="VND"
-                    placeholder="No upper limit"
-                    error={limitError}
-                  />
-                </InlineGrid>
+                  <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+                    <TextField
+                      label="Minimum order total"
+                      value={draft.hideBelowOrderTotal}
+                      onChange={(value) =>
+                        setField('hideBelowOrderTotal', value)
+                      }
+                      type="number"
+                      min={0}
+                      autoComplete="off"
+                      suffix="VND"
+                      placeholder="No lower limit"
+                    />
+                    <TextField
+                      label="Maximum order total"
+                      value={draft.hideAboveOrderTotal}
+                      onChange={(value) =>
+                        setField('hideAboveOrderTotal', value)
+                      }
+                      type="number"
+                      min={0}
+                      autoComplete="off"
+                      suffix="VND"
+                      placeholder="No upper limit"
+                      error={limitError}
+                    />
+                  </InlineGrid>
 
-                <Text as="p" tone="subdued">
-                  Leave both limits empty when you only want to use the advanced
-                  conditions below.
-                </Text>
-              </BlockStack>
-            </Collapsible>
-          )}
-        </BlockStack>
+                  <Text as="p" tone="subdued">
+                    Leave both limits empty when you only want to use the
+                    advanced conditions below.
+                  </Text>
+                </BlockStack>
+              </Collapsible>
+            )}
+          </BlockStack>
+        </Box>
       </Card>
     </InlineGrid>
   );

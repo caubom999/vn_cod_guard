@@ -3,7 +3,7 @@
 ## Product positioning
 - App name: Vietnam COD Guard
 - Tagline: Reduce COD fake orders for Vietnam Shopify stores.
-- Primary audience: Vietnam Shopify merchants using cash on delivery.
+- Primary audience: Vietnam Shopify merchants using COD.
 - Claims are honest: reduce risk and manual review, not guarantee fraud prevention.
 
 ## Technical readiness

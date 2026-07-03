@@ -1,4 +1,4 @@
 {
   "name": "Hide COD payment method",
-  "description": "Hide cash on delivery based on the order total"
+  "description": "Hide COD based on the order total"
 }
