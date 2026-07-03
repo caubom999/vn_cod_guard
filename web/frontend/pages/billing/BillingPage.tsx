@@ -4,6 +4,7 @@ import {
   BlockStack,
   Button,
   Card,
+  InlineGrid,
   InlineStack,
   SkeletonBodyText,
   Text,
@@ -21,7 +22,6 @@ import {
   MetricCard,
   MetricGrid,
   formatNumber,
-  metricGridStyle,
 } from '../../components/dashboard/shared';
 
 function BillingScreen() {
@@ -122,7 +122,7 @@ function BillingScreen() {
       </Card>
 
       {data ? (
-        <div style={metricGridStyle}>
+        <InlineGrid columns={{ xs: 1, md: 3 }} gap="400">
           {data.plans.map((plan) => (
             <BillingPlanCard
               key={plan.key}
@@ -132,7 +132,7 @@ function BillingScreen() {
               onSelect={handleSelectPlan}
             />
           ))}
-        </div>
+        </InlineGrid>
       ) : null}
     </BlockStack>
   );
@@ -198,4 +198,3 @@ function BillingPlanCard({
 export default function BillingPage() {
   return <BillingScreen />;
 }
-

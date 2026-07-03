@@ -11,7 +11,11 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <InlineGrid columns={['oneThird', 'twoThirds']} gap="600">
+    <InlineGrid
+      columns={{ xs: 1, md: ['oneThird', 'twoThirds'] }}
+      gap={{ xs: '400', md: '600' }}
+      alignItems="start"
+    >
       <BlockStack gap="100">
         <Text as="h2" variant="headingMd">
           {title}

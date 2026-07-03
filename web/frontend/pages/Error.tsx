@@ -1,4 +1,4 @@
-import { Page, Text } from '@shopify/polaris';
+import { Banner, Layout, Page, Text } from '@shopify/polaris';
 import { useRouteError } from 'react-router-dom';
 
 export default function ErrorPage() {
@@ -6,9 +6,15 @@ export default function ErrorPage() {
 
   return (
     <Page title="Something went wrong">
-      <Text as="p" tone="critical">
-        {error?.message || 'The app could not load this page.'}
-      </Text>
+      <Layout>
+        <Layout.Section>
+          <Banner title="The app could not load this page" tone="critical">
+            <Text as="p">
+              {error?.message || 'Please refresh the page and try again.'}
+            </Text>
+          </Banner>
+        </Layout.Section>
+      </Layout>
     </Page>
   );
 }

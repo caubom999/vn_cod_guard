@@ -1,4 +1,4 @@
-import { Banner, type BannerProps } from '@shopify/polaris';
+import { Banner, Box, type BannerProps } from '@shopify/polaris';
 import { useCallback, useState } from 'react';
 import { useSessionStorage } from '../../hook/useSessionStorage';
 
@@ -43,10 +43,10 @@ export function BannerWithDismiss({
   }, [onDismiss, sessionKey, setItem]);
 
   return isShow ? (
-    <div className="mb-4">
+    <Box paddingBlockEnd="400">
       <Banner {...restProps} onDismiss={handleDismiss}>
         {children}
       </Banner>
-    </div>
+    </Box>
   ) : null;
 }

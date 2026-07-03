@@ -4,7 +4,9 @@ import {
   Button,
   Card,
   Checkbox,
+  EmptySearchResult,
   FormLayout,
+  IndexTable,
   InlineStack,
   Modal,
   SkeletonBodyText,
@@ -26,12 +28,8 @@ import {
   ErrorBanner,
   MetricCard,
   MetricGrid,
-  Td,
-  Th,
   formatMoney,
   formatPercent,
-  tableStyle,
-  tableWrapStyle,
 } from '../../components/dashboard/shared';
 
 function AnalyticsScreen() {
@@ -214,22 +212,26 @@ function BlacklistScoringTable({
       <Text as="h3" variant="headingSm">
         Blacklist rules
       </Text>
-      <div style={tableWrapStyle}>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <Th>Risk signal</Th>
-              <Th>Status</Th>
-              <Th>When it matches</Th>
-              <Th>Score added</Th>
-              <Th>Action</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {blacklistScoringRules.map((rule) => (
-              <tr key={rule.name}>
-                <Td>{rule.name}</Td>
-                <Td>
+      <IndexTable
+        resourceName={{ singular: 'blacklist rule', plural: 'blacklist rules' }}
+        itemCount={blacklistScoringRules.length}
+        selectable={false}
+        headings={[
+          { title: 'Risk signal' },
+          { title: 'Status' },
+          { title: 'When it matches' },
+          { title: 'Score added' },
+          { title: 'Actions', alignment: 'end' },
+        ]}
+      >
+        {blacklistScoringRules.map((rule, index) => (
+          <IndexTable.Row id={rule.type} key={rule.type} position={index}>
+            <IndexTable.Cell>
+              <Text as="span" fontWeight="semibold">
+                {rule.name}
+              </Text>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
                   <Badge
                     tone={
                       getBlacklistRuleEnabled(settings, rule.type)
@@ -241,9 +243,9 @@ function BlacklistScoringTable({
                       ? 'Enabled'
                       : 'Disabled'}
                   </Badge>
-                </Td>
-                <Td>{rule.condition}</Td>
-                <Td>
+            </IndexTable.Cell>
+            <IndexTable.Cell>{rule.condition}</IndexTable.Cell>
+            <IndexTable.Cell>
                   <Badge
                     tone={
                       getBlacklistRuleEnabled(settings, rule.type)
@@ -253,17 +255,17 @@ function BlacklistScoringTable({
                   >
                     {`+${getBlacklistRuleScore(settings, rule.type)} points`}
                   </Badge>
-                </Td>
-                <Td>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              <InlineStack align="end">
                   <Button size="slim" onClick={() => onEdit(rule.type)}>
                     Edit
                   </Button>
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </InlineStack>
+            </IndexTable.Cell>
+          </IndexTable.Row>
+        ))}
+      </IndexTable>
     </BlockStack>
   );
 }
@@ -422,36 +424,51 @@ function RiskRulesTable({
   rules: RiskRule[];
   onEdit: (rule: RiskRule) => void;
 }) {
-  if (rules.length === 0) {
-    return <EmptyText text="No risk rules configured yet." />;
-  }
-
   return (
-    <div style={tableWrapStyle}>
-      <table style={tableStyle}>
-        <thead>
-          <tr>
-            <Th>Rule</Th>
-            <Th>Status</Th>
-            <Th>When it matches</Th>
-            <Th>Score added</Th>
-            <Th>Action</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {rules.map((rule) => {
+    <IndexTable
+      resourceName={{ singular: 'risk rule', plural: 'risk rules' }}
+      itemCount={rules.length}
+      selectable={false}
+      hasZebraStriping
+      lastColumnSticky
+      headings={[
+        { title: 'Rule' },
+        { title: 'Status' },
+        { title: 'When it matches' },
+        { title: 'Score added' },
+        { title: 'Actions', alignment: 'end' },
+      ]}
+      emptyState={
+        <EmptySearchResult
+          title="No risk rules configured"
+          description="Risk rules will appear here when they are available."
+          withIllustration
+        />
+      }
+    >
+      {rules.map((rule, index) => {
             const score = getRiskRuleScore(rule.actionJson);
 
             return (
-              <tr key={rule.id}>
-                <Td>{rule.name}</Td>
-                <Td>
+          <IndexTable.Row
+            id={String(rule.id)}
+            key={rule.id}
+            position={index}
+          >
+            <IndexTable.Cell>
+              <Text as="span" fontWeight="semibold">
+                {rule.name}
+              </Text>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
                   <Badge tone={rule.enabled ? 'success' : 'critical'}>
                     {rule.enabled ? 'Enabled' : 'Disabled'}
                   </Badge>
-                </Td>
-                <Td>{formatRiskCondition(rule.conditionJson)}</Td>
-                <Td>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              {formatRiskCondition(rule.conditionJson)}
+            </IndexTable.Cell>
+            <IndexTable.Cell>
                   {score === null ? (
                     '-'
                   ) : (
@@ -459,18 +476,18 @@ function RiskRulesTable({
                       {`+${score} points`}
                     </Badge>
                   )}
-                </Td>
-                <Td>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              <InlineStack align="end">
                   <Button size="slim" onClick={() => onEdit(rule)}>
                     Edit
                   </Button>
-                </Td>
-              </tr>
+              </InlineStack>
+            </IndexTable.Cell>
+          </IndexTable.Row>
             );
           })}
-        </tbody>
-      </table>
-    </div>
+    </IndexTable>
   );
 }
 

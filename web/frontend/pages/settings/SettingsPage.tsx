@@ -168,16 +168,7 @@ function SettingsScreen() {
 
   return (
     <BlockStack gap="500">
-      <InlineStack align="space-between" blockAlign="start">
-        <BlockStack gap="100">
-          <Text as="h1" variant="headingLg">
-            Settings
-          </Text>
-          <Text as="p" tone="subdued">
-            Configure how COD orders are matched, verified, tagged, and
-            followed up.
-          </Text>
-        </BlockStack>
+      <InlineStack align="end">
         <Badge tone={form.enabled ? 'success' : 'critical'}>
           {form.enabled ? 'Enabled' : 'Disabled'}
         </Badge>

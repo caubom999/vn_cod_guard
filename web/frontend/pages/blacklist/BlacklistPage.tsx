@@ -2,7 +2,11 @@ import {
   BlockStack,
   Button,
   Card,
+  EmptySearchResult,
   FormLayout,
+  IndexTable,
+  InlineStack,
+  Modal,
   Select,
   SkeletonBodyText,
   Text,
@@ -16,13 +20,8 @@ import {
   useDeleteBlacklistEntry,
 } from '../../hook/cod-dashboard';
 import {
-  EmptyText,
   ErrorBanner,
-  Td,
-  Th,
   formatDateTime,
-  tableStyle,
-  tableWrapStyle,
 } from '../../components/dashboard/shared';
 
 const blacklistTypeOptions = [
@@ -38,6 +37,8 @@ function BlacklistScreen() {
   const [type, setType] = useState<BlacklistEntry['type']>('PHONE');
   const [value, setValue] = useState('');
   const [reason, setReason] = useState('');
+  const [deleteEntryId, setDeleteEntryId] = useState<number | null>(null);
+  const entryToDelete = data?.find((entry) => entry.id === deleteEntryId);
 
   const canAdd = value.trim().length > 0 && !createEntry.isPending;
 
@@ -118,11 +119,53 @@ function BlacklistScreen() {
             <BlacklistTable
               entries={data || []}
               deleting={deleteEntry.isPending}
-              onDelete={(id) => deleteEntry.mutate(id)}
+              onDelete={setDeleteEntryId}
             />
           )}
         </BlockStack>
       </Card>
+
+      <Modal
+        open={deleteEntryId !== null}
+        onClose={() => setDeleteEntryId(null)}
+        title="Delete blacklist entry?"
+        primaryAction={{
+          content: 'Delete entry',
+          destructive: true,
+          loading: deleteEntry.isPending,
+          onAction: () => {
+            if (deleteEntryId !== null) {
+              deleteEntry.mutate(deleteEntryId, {
+                onSuccess: () => setDeleteEntryId(null),
+              });
+            }
+          },
+        }}
+        secondaryActions={[
+          {
+            content: 'Cancel',
+            disabled: deleteEntry.isPending,
+            onAction: () => setDeleteEntryId(null),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <BlockStack gap="300">
+            <Text as="p">
+              {entryToDelete
+                ? `${formatEntryType(entryToDelete.type)}: ${entryToDelete.value}`
+                : 'This blacklist entry'}
+            </Text>
+            <Text as="p" tone="subdued">
+              Future orders will no longer be matched against this entry.
+              Existing order risk scores will not change.
+            </Text>
+            {deleteEntry.error ? (
+              <ErrorBanner error={deleteEntry.error} />
+            ) : null}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
     </BlockStack>
   );
 }
@@ -136,32 +179,50 @@ function BlacklistTable({
   deleting: boolean;
   onDelete: (id: number) => void;
 }) {
-  if (entries.length === 0) {
-    return <EmptyText text="No blacklist entries yet." />;
-  }
-
   return (
-    <div style={tableWrapStyle}>
-      <table style={tableStyle}>
-        <thead>
-          <tr>
-            <Th>Type</Th>
-            <Th>Value</Th>
-            <Th>Reason</Th>
-            <Th>Hits</Th>
-            <Th>Last seen</Th>
-            <Th>Action</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry) => (
-            <tr key={entry.id}>
-              <Td>{entry.type}</Td>
-              <Td>{entry.value}</Td>
-              <Td>{entry.reason || '-'}</Td>
-              <Td>{entry.hitCount}</Td>
-              <Td>{formatDateTime(entry.lastSeenAt)}</Td>
-              <Td>
+    <IndexTable
+      resourceName={{ singular: 'blacklist entry', plural: 'blacklist entries' }}
+      itemCount={entries.length}
+      selectable={false}
+      hasZebraStriping
+      lastColumnSticky
+      headings={[
+        { title: 'Type' },
+        { title: 'Value' },
+        { title: 'Reason' },
+        { title: 'Hits', alignment: 'end' },
+        { title: 'Last seen' },
+        { title: 'Actions', alignment: 'end' },
+      ]}
+      emptyState={
+        <EmptySearchResult
+          title="No blacklist entries"
+          description="Add a phone number, email, or address to start monitoring risky COD orders."
+          withIllustration
+        />
+      }
+    >
+      {entries.map((entry, index) => (
+        <IndexTable.Row
+          id={String(entry.id)}
+          key={entry.id}
+          position={index}
+        >
+          <IndexTable.Cell>{formatEntryType(entry.type)}</IndexTable.Cell>
+          <IndexTable.Cell>
+            <Text as="span" fontWeight="semibold">
+              {entry.value}
+            </Text>
+          </IndexTable.Cell>
+          <IndexTable.Cell>{entry.reason || '-'}</IndexTable.Cell>
+          <IndexTable.Cell>
+            <Text as="span" alignment="end" numeric>
+              {entry.hitCount}
+            </Text>
+          </IndexTable.Cell>
+          <IndexTable.Cell>{formatDateTime(entry.lastSeenAt)}</IndexTable.Cell>
+          <IndexTable.Cell>
+            <InlineStack align="end">
                 <Button
                   tone="critical"
                   size="slim"
@@ -170,16 +231,24 @@ function BlacklistTable({
                 >
                   Delete
                 </Button>
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+            </InlineStack>
+          </IndexTable.Cell>
+        </IndexTable.Row>
+      ))}
+    </IndexTable>
   );
+}
+
+function formatEntryType(type: BlacklistEntry['type']) {
+  const labels = {
+    PHONE: 'Phone',
+    EMAIL: 'Email',
+    ADDRESS: 'Address',
+  };
+
+  return labels[type];
 }
 
 export default function BlacklistPage() {
   return <BlacklistScreen />;
 }
-

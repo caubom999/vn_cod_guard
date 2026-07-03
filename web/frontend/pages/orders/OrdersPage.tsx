@@ -1,12 +1,15 @@
 import {
   BlockStack,
+  Box,
   Button,
   Card,
   DescriptionList,
   Divider,
   EmptySearchResult,
   IndexTable,
+  InlineGrid,
   InlineStack,
+  List,
   Modal,
   Pagination,
   Select,
@@ -29,16 +32,9 @@ import {
   MetricCard,
   MetricGrid,
   StatusBadge,
-  Td,
-  Th,
   compact,
-  filterFieldStyle,
   formatDateTime,
   formatMoney,
-  searchFieldStyle,
-  tableStyle,
-  tableWrapStyle,
-  timelineItemStyle,
 } from '../../components/dashboard/shared';
 
 const orderStatusOptions = [
@@ -88,32 +84,26 @@ function OrdersScreen() {
     <BlockStack gap="400">
       <Card>
         <BlockStack gap="400">
-          <InlineStack gap="300" blockAlign="end" wrap>
-            <div style={filterFieldStyle}>
+          <InlineGrid columns={{ xs: 1, md: 3 }} gap="300" alignItems="end">
               <Select
                 label="Status"
                 options={orderStatusOptions}
                 value={status}
                 onChange={setStatus}
               />
-            </div>
-            <div style={searchFieldStyle}>
               <TextField
                 label="Search order, customer, phone, email"
                 value={search}
                 onChange={setSearch}
                 autoComplete="off"
               />
-            </div>
-            <div style={filterFieldStyle}>
               <Select
                 label="Rows per page"
                 options={pageSizeOptions}
                 value={String(pageSize)}
                 onChange={(value) => setPageSize(Number(value))}
               />
-            </div>
-          </InlineStack>
+          </InlineGrid>
 
           {isLoading ? (
             <SkeletonBodyText lines={8} />
@@ -448,13 +438,13 @@ function RiskBreakdown({
         Why this risk score?
       </Text>
       {reasons.length ? (
-        <ul style={{ margin: 0, paddingLeft: 20 }}>
+        <List type="bullet">
           {reasons.map((reason) => (
-            <li key={reason}>
-              <Text as="span">{formatRiskReason(reason, riskRules)}</Text>
-            </li>
+            <List.Item key={reason}>
+              {formatRiskReason(reason, riskRules)}
+            </List.Item>
           ))}
-        </ul>
+        </List>
       ) : (
         <Text as="p" tone="subdued">
           No risk signals were recorded for this order.
@@ -488,28 +478,40 @@ function LineItems({
       <Text as="h3" variant="headingSm">
         Items
       </Text>
-      <div style={tableWrapStyle}>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <Th>Product</Th>
-              <Th>SKU</Th>
-              <Th>Quantity</Th>
-              <Th>Price</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, index) => (
-              <tr key={`${item.sku || item.title}-${index}`}>
-                <Td>{compact([item.title, item.variantTitle]) || '-'}</Td>
-                <Td>{item.sku || '-'}</Td>
-                <Td>{item.quantity}</Td>
-                <Td>{formatMoney(item.price, currency || 'VND')}</Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <IndexTable
+        resourceName={{ singular: 'line item', plural: 'line items' }}
+        itemCount={items.length}
+        selectable={false}
+        headings={[
+          { title: 'Product' },
+          { title: 'SKU' },
+          { title: 'Quantity', alignment: 'end' },
+          { title: 'Price', alignment: 'end' },
+        ]}
+      >
+        {items.map((item, index) => (
+          <IndexTable.Row
+            id={`${item.sku || item.title}-${index}`}
+            key={`${item.sku || item.title}-${index}`}
+            position={index}
+          >
+            <IndexTable.Cell>
+              {compact([item.title, item.variantTitle]) || '-'}
+            </IndexTable.Cell>
+            <IndexTable.Cell>{item.sku || '-'}</IndexTable.Cell>
+            <IndexTable.Cell>
+              <Text as="span" alignment="end" numeric>
+                {item.quantity}
+              </Text>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              <Text as="span" alignment="end" numeric>
+                {formatMoney(item.price, currency || 'VND')}
+              </Text>
+            </IndexTable.Cell>
+          </IndexTable.Row>
+        ))}
+      </IndexTable>
     </BlockStack>
   );
 }
@@ -533,7 +535,13 @@ function Timeline({ items }: { items: TimelineItem[] }) {
   return (
     <BlockStack gap="200">
       {sortedItems.map((item) => (
-        <div key={item.id} style={timelineItemStyle}>
+        <Box
+          key={item.id}
+          borderWidth="025"
+          borderColor="border"
+          borderRadius="200"
+          padding="300"
+        >
           <BlockStack gap="100">
             <InlineStack align="space-between" gap="300" wrap={false}>
               <Text as="p" fontWeight="semibold">
@@ -549,7 +557,7 @@ function Timeline({ items }: { items: TimelineItem[] }) {
               </Text>
             ) : null}
           </BlockStack>
-        </div>
+        </Box>
       ))}
     </BlockStack>
   );
