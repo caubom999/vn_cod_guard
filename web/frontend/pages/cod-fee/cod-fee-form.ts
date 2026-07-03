@@ -47,7 +47,7 @@ export const initialCodFeeDraft: CodFeeDraft = {
   provinces: '',
   excludedCustomerTags: '',
   lineItemTitle: 'COD fee',
-  displayMessage: 'COD fee will be added for cash on delivery orders.',
+  displayMessage: 'A COD fee will be added to this order.',
 };
 
 export function getFeeAmountError(draft: CodFeeDraft) {

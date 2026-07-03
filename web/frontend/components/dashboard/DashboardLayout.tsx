@@ -1,8 +1,4 @@
-import {
-  BlockStack,
-  Layout,
-  Page,
-} from '@shopify/polaris';
+import { BlockStack, Layout, Page } from '@shopify/polaris';
 import { Outlet } from 'react-router-dom';
 
 export default function DashboardLayout() {

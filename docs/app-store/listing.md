@@ -10,7 +10,7 @@ Reduce COD fake orders for Vietnam Shopify stores.
 Vietnam COD Guard helps Shopify merchants in Vietnam verify cash-on-delivery orders before fulfilment, tag risky orders, and reduce wasted shipping costs from fake or unreachable customers.
 
 ## Long description
-Vietnam COD Guard is built for Shopify stores that sell with cash on delivery in Vietnam. The app listens for new orders, detects configured COD payment methods, stores a local COD order snapshot, sends a verification link by email, and updates Shopify order tags when the customer confirms, cancels, or does not respond.
+Vietnam COD Guard is built for Shopify stores that sell with COD in Vietnam. The app listens for new orders, detects configured COD payment methods, stores a local COD order snapshot, sends a verification link by email, and updates Shopify order tags when the customer confirms, cancels, or does not respond.
 
 The goal is to help merchants make faster fulfilment decisions without repeatedly calling Shopify APIs or manually checking every COD order.
 

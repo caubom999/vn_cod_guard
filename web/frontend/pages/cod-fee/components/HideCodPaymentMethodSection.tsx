@@ -28,7 +28,7 @@ export function HideCodPaymentMethodSection({
   return (
     <BlockStack gap="300">
       <Checkbox
-        label="Hide cash on delivery based on the order total"
+        label="Hide COD payment based on the order total"
         checked={draft.hideByOrderTotal}
         onChange={(value) => update('hideByOrderTotal', value)}
         disabled={isLoading}
@@ -49,7 +49,7 @@ export function HideCodPaymentMethodSection({
             </Text>
             <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
               <TextField
-                label="Hide when order total is less than"
+                label="Minimum order total"
                 value={draft.hideBelowOrderTotal}
                 onChange={(value) => update('hideBelowOrderTotal', value)}
                 type="number"
@@ -59,7 +59,7 @@ export function HideCodPaymentMethodSection({
                 placeholder="No lower limit"
               />
               <TextField
-                label="Hide when order total is greater than"
+                label="Maximum order total"
                 value={draft.hideAboveOrderTotal}
                 onChange={(value) => update('hideAboveOrderTotal', value)}
                 type="number"
@@ -77,7 +77,7 @@ export function HideCodPaymentMethodSection({
       <Divider />
 
       <Checkbox
-        label="Hide cash on delivery if the order has discounts"
+        label="Hide COD payment if the order has discounts"
         checked={draft.hideDiscountedOrders}
         onChange={(value) => update('hideDiscountedOrders', value)}
         disabled={isLoading}
@@ -95,8 +95,8 @@ export function HideCodPaymentMethodSection({
         >
           <BlockStack gap="200">
             <Text as="p">
-              Cash on delivery will be hidden if the discount amount on the
-              order is greater than:
+              COD will be hidden if the discount amount on the order is greater
+              than:
             </Text>
             <TextField
               label="Minimum discount amount"
@@ -118,7 +118,6 @@ export function HideCodPaymentMethodSection({
           </BlockStack>
         </Box>
       </Collapsible>
-
     </BlockStack>
   );
 }

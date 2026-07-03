@@ -35,7 +35,7 @@ export function HideCodShippingMethodSection({
       <Card>
         <BlockStack gap="300">
           <Checkbox
-            label="Limit COD shipping method"
+            label="Hide COD shipping method"
             checked={draft.hideCodShippingMethod}
             onChange={(value) => setField('hideCodShippingMethod', value)}
             disabled={isLoading}
@@ -56,7 +56,7 @@ export function HideCodShippingMethodSection({
 
                 <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
                   <TextField
-                    label="Hide when order total is less than"
+                    label="Minimum order total"
                     value={draft.hideBelowOrderTotal}
                     onChange={(value) => setField('hideBelowOrderTotal', value)}
                     type="number"
@@ -66,7 +66,7 @@ export function HideCodShippingMethodSection({
                     placeholder="No lower limit"
                   />
                   <TextField
-                    label="Hide when order total is greater than"
+                    label="Maximum order total"
                     value={draft.hideAboveOrderTotal}
                     onChange={(value) => setField('hideAboveOrderTotal', value)}
                     type="number"

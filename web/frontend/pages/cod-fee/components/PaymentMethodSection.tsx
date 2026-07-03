@@ -41,7 +41,7 @@ export function PaymentMethodSection({
           Payment method
         </Text>
         <Text as="p" tone="subdued">
-          Select the exact cash on delivery payment method shown at checkout.
+          Select the exact COD payment method shown at checkout.
         </Text>
       </BlockStack>
 

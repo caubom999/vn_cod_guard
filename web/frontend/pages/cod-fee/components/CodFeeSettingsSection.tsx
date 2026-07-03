@@ -26,7 +26,7 @@ export function CodFeeSettingsSection({
           Configure your additional fee
         </Text>
         <Text as="p" tone="subdued">
-          Configure the surcharge added to eligible cash on delivery orders.
+          Configure the surcharge added to eligible COD orders.
         </Text>
       </BlockStack>
 
