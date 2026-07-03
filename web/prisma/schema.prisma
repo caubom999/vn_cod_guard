@@ -218,6 +218,12 @@ model CodShopSetting {
   expiredTag                  String              @default("cod_no_response") @db.VarChar(64)
   riskTag                     String              @default("cod_risky") @db.VarChar(64)
   codPaymentNamesJson         Json?
+  blacklistPhoneEnabled       Boolean             @default(true)
+  blacklistPhoneScore         Int                 @default(80)
+  blacklistEmailEnabled       Boolean             @default(true)
+  blacklistEmailScore         Int                 @default(70)
+  blacklistAddressEnabled     Boolean             @default(true)
+  blacklistAddressScore       Int                 @default(70)
   createdAt                   DateTime            @default(now())
   updatedAt                   DateTime            @updatedAt
 

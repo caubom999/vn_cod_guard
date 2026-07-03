@@ -477,6 +477,20 @@ function formatRiskReason(reason: string, riskRules: RiskRule[]) {
     return labels[reason];
   }
 
+  const scoredBlacklist = reason.match(
+    /^blacklist:(phone|email|address):(\d+)$/,
+  );
+
+  if (scoredBlacklist) {
+    const names = {
+      phone: 'Phone number matched the blacklist',
+      email: 'Email address matched the blacklist',
+      address: 'Shipping address matched the blacklist',
+    };
+
+    return `${names[scoredBlacklist[1] as keyof typeof names]} (+${scoredBlacklist[2]})`;
+  }
+
   const scoredRule = reason.match(/^rule:(\d+):(.*)$/);
 
   if (scoredRule) {

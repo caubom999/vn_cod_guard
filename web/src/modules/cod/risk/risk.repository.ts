@@ -157,6 +157,48 @@ export class RiskRepository {
     });
   }
 
+  getBlacklistScoring(shopId: number) {
+    return this.prisma.codShopSetting.upsert({
+      where: { shopId },
+      update: {},
+      create: { shopId },
+      select: {
+        blacklistPhoneEnabled: true,
+        blacklistPhoneScore: true,
+        blacklistEmailEnabled: true,
+        blacklistEmailScore: true,
+        blacklistAddressEnabled: true,
+        blacklistAddressScore: true,
+      },
+    });
+  }
+
+  updateBlacklistScoring(
+    shopId: number,
+    data: {
+      blacklistPhoneEnabled?: boolean;
+      blacklistPhoneScore?: number;
+      blacklistEmailEnabled?: boolean;
+      blacklistEmailScore?: number;
+      blacklistAddressEnabled?: boolean;
+      blacklistAddressScore?: number;
+    },
+  ) {
+    return this.prisma.codShopSetting.upsert({
+      where: { shopId },
+      update: data,
+      create: { shopId, ...data },
+      select: {
+        blacklistPhoneEnabled: true,
+        blacklistPhoneScore: true,
+        blacklistEmailEnabled: true,
+        blacklistEmailScore: true,
+        blacklistAddressEnabled: true,
+        blacklistAddressScore: true,
+      },
+    });
+  }
+
   upsertBlacklistEntry(data: Prisma.CodBlacklistEntryUncheckedCreateInput) {
     return this.prisma.codBlacklistEntry.upsert({
       where: {

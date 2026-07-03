@@ -122,6 +122,15 @@ export type BlacklistEntry = {
   updatedAt: string;
 };
 
+export type BlacklistScoringSettings = {
+  blacklistPhoneEnabled: boolean;
+  blacklistPhoneScore: number;
+  blacklistEmailEnabled: boolean;
+  blacklistEmailScore: number;
+  blacklistAddressEnabled: boolean;
+  blacklistAddressScore: number;
+};
+
 export function useCodOverview() {
   const api = useApi();
 
@@ -231,6 +240,32 @@ export function useBlacklist() {
   return useQuery({
     queryKey: ['blacklist'],
     queryFn: () => api<BlacklistEntry[]>('/api/cod/risk/blacklist'),
+  });
+}
+
+export function useBlacklistScoring() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: ['blacklist-scoring'],
+    queryFn: () =>
+      api<BlacklistScoringSettings>('/api/cod/risk/blacklist-scoring'),
+  });
+}
+
+export function useUpdateBlacklistScoring() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (settings: BlacklistScoringSettings) =>
+      api<BlacklistScoringSettings>('/api/cod/risk/blacklist-scoring', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      }),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(['blacklist-scoring'], settings);
+    },
   });
 }
 

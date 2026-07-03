@@ -13,9 +13,12 @@ import {
 } from '@shopify/polaris';
 import { useState } from 'react';
 import {
+  type BlacklistScoringSettings,
   type RiskRule,
+  useBlacklistScoring,
   useCodOverview,
   useRiskRules,
+  useUpdateBlacklistScoring,
   useUpdateRiskRule,
 } from '../../hook/cod-dashboard';
 import {
@@ -35,7 +38,11 @@ function AnalyticsScreen() {
   const { data, isLoading, error } = useCodOverview();
   const riskRules = useRiskRules();
   const updateRiskRule = useUpdateRiskRule();
+  const blacklistScoring = useBlacklistScoring();
+  const updateBlacklistScoring = useUpdateBlacklistScoring();
   const [editingRule, setEditingRule] = useState<RiskRule | null>(null);
+  const [editingBlacklistType, setEditingBlacklistType] =
+    useState<BlacklistRuleType | null>(null);
 
   if (error) {
     return <ErrorBanner error={error} />;
@@ -95,7 +102,16 @@ function AnalyticsScreen() {
             </Text>
           </BlockStack>
 
-          <BlacklistScoringTable />
+          {blacklistScoring.error ? (
+            <ErrorBanner error={blacklistScoring.error} />
+          ) : blacklistScoring.isLoading || !blacklistScoring.data ? (
+            <SkeletonBodyText lines={4} />
+          ) : (
+            <BlacklistScoringTable
+              settings={blacklistScoring.data}
+              onEdit={setEditingBlacklistType}
+            />
+          )}
         </BlockStack>
       </Card>
 
@@ -139,30 +155,60 @@ function AnalyticsScreen() {
           }}
         />
       ) : null}
+
+      {editingBlacklistType && blacklistScoring.data ? (
+        <BlacklistRuleEditModal
+          type={editingBlacklistType}
+          settings={blacklistScoring.data}
+          saving={updateBlacklistScoring.isPending}
+          error={updateBlacklistScoring.error}
+          onClose={() => {
+            updateBlacklistScoring.reset();
+            setEditingBlacklistType(null);
+          }}
+          onSave={(settings) => {
+            updateBlacklistScoring.mutate(settings, {
+              onSuccess: () => setEditingBlacklistType(null),
+            });
+          }}
+        />
+      ) : null}
     </BlockStack>
   );
 }
 
-const blacklistScoringRules = [
+type BlacklistRuleType = 'phone' | 'email' | 'address';
+
+const blacklistScoringRules: Array<{
+  type: BlacklistRuleType;
+  name: string;
+  condition: string;
+}> = [
   {
+    type: 'phone',
     name: 'Blacklisted phone number',
     condition: 'The order phone number exactly matches a blacklist entry.',
-    score: 80,
   },
   {
+    type: 'email',
     name: 'Blacklisted email address',
     condition: 'The customer email exactly matches a blacklist entry.',
-    score: 70,
   },
   {
+    type: 'address',
     name: 'Blacklisted shipping address',
     condition:
       'The normalized full shipping address matches a blacklist entry.',
-    score: 70,
   },
 ];
 
-function BlacklistScoringTable() {
+function BlacklistScoringTable({
+  settings,
+  onEdit,
+}: {
+  settings: BlacklistScoringSettings;
+  onEdit: (type: BlacklistRuleType) => void;
+}) {
   return (
     <BlockStack gap="300">
       <Text as="h3" variant="headingSm">
@@ -173,17 +219,45 @@ function BlacklistScoringTable() {
           <thead>
             <tr>
               <Th>Risk signal</Th>
+              <Th>Status</Th>
               <Th>When it matches</Th>
               <Th>Score added</Th>
+              <Th>Action</Th>
             </tr>
           </thead>
           <tbody>
             {blacklistScoringRules.map((rule) => (
               <tr key={rule.name}>
                 <Td>{rule.name}</Td>
+                <Td>
+                  <Badge
+                    tone={
+                      getBlacklistRuleEnabled(settings, rule.type)
+                        ? 'success'
+                        : 'critical'
+                    }
+                  >
+                    {getBlacklistRuleEnabled(settings, rule.type)
+                      ? 'Enabled'
+                      : 'Disabled'}
+                  </Badge>
+                </Td>
                 <Td>{rule.condition}</Td>
                 <Td>
-                  <Badge tone="warning">{`+${rule.score} points`}</Badge>
+                  <Badge
+                    tone={
+                      getBlacklistRuleEnabled(settings, rule.type)
+                        ? 'warning'
+                        : undefined
+                    }
+                  >
+                    {`+${getBlacklistRuleScore(settings, rule.type)} points`}
+                  </Badge>
+                </Td>
+                <Td>
+                  <Button size="slim" onClick={() => onEdit(rule.type)}>
+                    Edit
+                  </Button>
                 </Td>
               </tr>
             ))}
@@ -192,6 +266,153 @@ function BlacklistScoringTable() {
       </div>
     </BlockStack>
   );
+}
+
+function BlacklistRuleEditModal({
+  type,
+  settings,
+  saving,
+  error,
+  onClose,
+  onSave,
+}: {
+  type: BlacklistRuleType;
+  settings: BlacklistScoringSettings;
+  saving: boolean;
+  error: unknown;
+  onClose: () => void;
+  onSave: (settings: BlacklistScoringSettings) => void;
+}) {
+  const rule = blacklistScoringRules.find((item) => item.type === type);
+  const [enabled, setEnabled] = useState(
+    getBlacklistRuleEnabled(settings, type),
+  );
+  const [score, setScore] = useState(
+    String(getBlacklistRuleScore(settings, type)),
+  );
+  const scoreNumber = Number(score);
+  const scoreError =
+    !Number.isInteger(scoreNumber) || scoreNumber < 1 || scoreNumber > 100
+      ? 'Enter a score from 1 to 100.'
+      : undefined;
+
+  const handleSave = () => {
+    if (scoreError) {
+      return;
+    }
+
+    onSave(updateBlacklistRule(settings, type, enabled, scoreNumber));
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Edit blacklist rule: ${rule?.name || type}`}
+      primaryAction={{
+        content: 'Save rule',
+        onAction: handleSave,
+        loading: saving,
+        disabled: Boolean(scoreError) || saving,
+      }}
+      secondaryActions={[
+        {
+          content: 'Cancel',
+          onAction: onClose,
+          disabled: saving,
+        },
+      ]}
+    >
+      <Modal.Section>
+        <BlockStack gap="400">
+          <Text as="p" tone="subdued">
+            {rule?.condition}
+          </Text>
+          <Checkbox
+            label="Enable this blacklist rule"
+            checked={enabled}
+            onChange={setEnabled}
+          />
+          <TextField
+            label="Risk score to add"
+            helpText="The final order score is capped at 100."
+            value={score}
+            onChange={setScore}
+            type="number"
+            min={1}
+            max={100}
+            suffix="points"
+            autoComplete="off"
+            error={scoreError}
+          />
+          {error ? <ErrorBanner error={error} /> : null}
+          <Text as="p" tone="subdued">
+            Changes apply to new orders only. Existing order risk scores are
+            preserved for audit history.
+          </Text>
+        </BlockStack>
+      </Modal.Section>
+    </Modal>
+  );
+}
+
+function getBlacklistRuleEnabled(
+  settings: BlacklistScoringSettings,
+  type: BlacklistRuleType,
+) {
+  if (type === 'phone') {
+    return settings.blacklistPhoneEnabled;
+  }
+
+  if (type === 'email') {
+    return settings.blacklistEmailEnabled;
+  }
+
+  return settings.blacklistAddressEnabled;
+}
+
+function getBlacklistRuleScore(
+  settings: BlacklistScoringSettings,
+  type: BlacklistRuleType,
+) {
+  if (type === 'phone') {
+    return settings.blacklistPhoneScore;
+  }
+
+  if (type === 'email') {
+    return settings.blacklistEmailScore;
+  }
+
+  return settings.blacklistAddressScore;
+}
+
+function updateBlacklistRule(
+  settings: BlacklistScoringSettings,
+  type: BlacklistRuleType,
+  enabled: boolean,
+  score: number,
+): BlacklistScoringSettings {
+  if (type === 'phone') {
+    return {
+      ...settings,
+      blacklistPhoneEnabled: enabled,
+      blacklistPhoneScore: score,
+    };
+  }
+
+  if (type === 'email') {
+    return {
+      ...settings,
+      blacklistEmailEnabled: enabled,
+      blacklistEmailScore: score,
+    };
+  }
+
+  return {
+    ...settings,
+    blacklistAddressEnabled: enabled,
+    blacklistAddressScore: score,
+  };
 }
 
 function RiskRulesTable({
