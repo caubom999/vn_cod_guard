@@ -21,7 +21,7 @@ export function FeeCalculationSection({
     <BlockStack gap="400">
       <BlockStack gap="100">
         <Checkbox
-          label="Enable COD fee"
+          label="Enable COD surcharge"
           checked={draft.feeEnabled}
           onChange={(value) => setField('feeEnabled', value)}
           disabled={disabled}
