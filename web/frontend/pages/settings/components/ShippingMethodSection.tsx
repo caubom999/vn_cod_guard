@@ -8,27 +8,30 @@ import {
   Text,
 } from '@shopify/polaris';
 import { RefreshIcon } from '@shopify/polaris-icons';
-import type { ShippingMethodSectionProps } from '../../../types/cod-fee';
+import type { CodShippingMethod } from '../../../types/cod-fee';
+import { SettingsSection } from './SettingsSection';
 
 export function ShippingMethodSection({
-  draft,
-  setField,
+  value,
   methods,
-  nameError,
+  error,
   isLoading,
   isSyncing,
+  onChange,
   onSync,
-}: ShippingMethodSectionProps) {
+}: {
+  value: string;
+  methods: CodShippingMethod[];
+  error?: string;
+  isLoading: boolean;
+  isSyncing: boolean;
+  onChange: (value: string) => void;
+  onSync: () => void;
+}) {
   const options = [
-    ...(methods.some((method) => method.name === draft.codShippingMethodName) ||
-    !draft.codShippingMethodName
+    ...(methods.some((method) => method.name === value) || !value
       ? []
-      : [
-          {
-            label: draft.codShippingMethodName,
-            value: draft.codShippingMethodName,
-          },
-        ]),
+      : [{ label: value, value }]),
     ...methods.map((method) => ({
       label: method.name,
       value: method.name,
@@ -36,20 +39,10 @@ export function ShippingMethodSection({
   ];
 
   return (
-    <InlineGrid
-      columns={{ xs: 1, md: ['oneThird', 'twoThirds'] }}
-      gap={{ xs: '400', md: '600' }}
-      alignItems="start"
+    <SettingsSection
+      title="Shipping method"
+      description="Select the COD shipping method customers see at checkout."
     >
-      <BlockStack gap="200">
-        <Text as="h2" variant="headingMd">
-          Shipping method
-        </Text>
-        <Text as="p" tone="subdued">
-          Select the exact COD shipping method shown at checkout.
-        </Text>
-      </BlockStack>
-
       <Card>
         <BlockStack gap="300">
           <InlineGrid
@@ -58,12 +51,12 @@ export function ShippingMethodSection({
             alignItems="end"
           >
             <Select
-              label="Shipping method name"
+              label="COD shipping method"
               options={options}
-              value={draft.codShippingMethodName}
-              onChange={(value) => setField('codShippingMethodName', value)}
+              value={value}
+              onChange={onChange}
               disabled={isLoading || isSyncing}
-              error={nameError}
+              error={error}
               placeholder={
                 isLoading ? 'Loading shipping methods…' : 'Select a shipping method'
               }
@@ -84,6 +77,6 @@ export function ShippingMethodSection({
           </Text>
         </BlockStack>
       </Card>
-    </InlineGrid>
+    </SettingsSection>
   );
 }

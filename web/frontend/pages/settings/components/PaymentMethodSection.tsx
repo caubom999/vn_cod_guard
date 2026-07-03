@@ -8,22 +8,30 @@ import {
   Text,
 } from '@shopify/polaris';
 import { RefreshIcon } from '@shopify/polaris-icons';
-import type { PaymentMethodSectionProps } from '../../../types/cod-fee';
+import type { CodPaymentMethod } from '../../../types/cod-fee';
+import { SettingsSection } from './SettingsSection';
 
 export function PaymentMethodSection({
-  draft,
-  setDraft,
+  value,
   methods,
-  nameError,
+  error,
   isLoading,
   isSyncing,
+  onChange,
   onSync,
-}: PaymentMethodSectionProps) {
+}: {
+  value: string;
+  methods: CodPaymentMethod[];
+  error?: string;
+  isLoading: boolean;
+  isSyncing: boolean;
+  onChange: (value: string) => void;
+  onSync: () => void;
+}) {
   const options = [
-    ...(methods.some((method) => method.name === draft.paymentMethodName) ||
-    !draft.paymentMethodName
+    ...(methods.some((method) => method.name === value) || !value
       ? []
-      : [{ label: draft.paymentMethodName, value: draft.paymentMethodName }]),
+      : [{ label: value, value }]),
     ...methods.map((method) => ({
       label: method.name,
       value: method.name,
@@ -31,20 +39,10 @@ export function PaymentMethodSection({
   ];
 
   return (
-    <InlineGrid
-      columns={{ xs: 1, md: ['oneThird', 'twoThirds'] }}
-      gap={{ xs: '400', md: '600' }}
-      alignItems="start"
+    <SettingsSection
+      title="Payment method"
+      description="Select the COD payment method customers see at checkout."
     >
-      <BlockStack gap="200">
-        <Text as="h2" variant="headingMd">
-          Payment method
-        </Text>
-        <Text as="p" tone="subdued">
-          Select the exact COD payment method shown at checkout.
-        </Text>
-      </BlockStack>
-
       <Card>
         <BlockStack gap="300">
           <InlineGrid
@@ -53,17 +51,12 @@ export function PaymentMethodSection({
             alignItems="end"
           >
             <Select
-              label="Payment method name"
+              label="COD payment method"
               options={options}
-              value={draft.paymentMethodName}
-              onChange={(paymentMethodName) =>
-                setDraft((current) => ({
-                  ...current,
-                  paymentMethodName,
-                }))
-              }
+              value={value}
+              onChange={onChange}
               disabled={isLoading || isSyncing}
-              error={nameError}
+              error={error}
               placeholder={
                 isLoading ? 'Loading payment methods…' : 'Select a payment method'
               }
@@ -84,6 +77,6 @@ export function PaymentMethodSection({
           </Text>
         </BlockStack>
       </Card>
-    </InlineGrid>
+    </SettingsSection>
   );
 }
