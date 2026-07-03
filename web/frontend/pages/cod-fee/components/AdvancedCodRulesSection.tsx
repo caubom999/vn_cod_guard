@@ -1,19 +1,25 @@
 import {
   Autocomplete,
   BlockStack,
+  Button,
   Card,
   Checkbox,
   Divider,
   InlineGrid,
+  InlineStack,
+  Select,
+  Tag,
   Text,
   TextField,
 } from '@shopify/polaris';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import type { CountryCode } from 'libphonenumber-js';
 import { useMemo, useState } from 'react';
 import type {
   AdvancedCodRulesSectionProps,
   CodPaymentAdvancedRuleDraft,
 } from '../../../types/cod-fee';
-import { COUNTRY_OPTIONS } from '../country-options';
+import { COUNTRY_OPTIONS, PHONE_COUNTRY_OPTIONS } from '../country-options';
 import { HideCodPaymentMethodSection } from './HideCodPaymentMethodSection';
 
 type ListRuleKey = {
@@ -112,13 +118,11 @@ export function AdvancedCodRulesSection({
           label: 'Hide COD payment for one or more email addresses',
           placeholder: 'customer@example.com',
         })}
-        {listRule({
-          ruleKey: 'hideCustomerPhones',
-          label: 'Hide COD payment for one or more phone numbers',
-          placeholder: '+84901234567',
-          helpText:
-            'Separate multiple phone numbers with commas. Formatting characters are ignored.',
-        })}
+        <PhoneNumberRule
+          value={rules.hideCustomerPhones}
+          disabled={disabled}
+          onChange={(value) => setRule('hideCustomerPhones', value)}
+        />
       </RuleSection>
 
       <RuleSection
@@ -338,6 +342,146 @@ function CountryCodeRule({
             />
           }
         />
+      ) : null}
+    </BlockStack>
+  );
+}
+
+function PhoneNumberRule({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const phoneNumbers = useMemo(
+    () =>
+      value
+        .split(',')
+        .map((phone) => phone.trim())
+        .filter(Boolean),
+    [value],
+  );
+  const initialCountry =
+    parsePhoneNumberFromString(phoneNumbers[0] || '')?.country || 'VN';
+  const [expanded, setExpanded] = useState(Boolean(phoneNumbers.length));
+  const [country, setCountry] = useState<string>(initialCountry);
+  const [localNumber, setLocalNumber] = useState('');
+  const [error, setError] = useState('');
+  const checked = expanded || phoneNumbers.length > 0;
+
+  const addPhoneNumber = () => {
+    if (!localNumber.replace(/\D/g, '')) {
+      setError('Enter a phone number.');
+      return;
+    }
+
+    const parsed = parsePhoneNumberFromString(
+      localNumber,
+      country as CountryCode,
+    );
+
+    if (!parsed?.isPossible()) {
+      setError('Enter a valid phone number for the selected country.');
+      return;
+    }
+
+    const normalized = parsed.number;
+
+    onChange([...new Set([...phoneNumbers, normalized])].join(', '));
+    setLocalNumber('');
+    setError('');
+  };
+
+  return (
+    <BlockStack gap="200">
+      <Checkbox
+        label="Hide COD payment for one or more phone numbers"
+        checked={checked}
+        disabled={disabled}
+        onChange={(nextChecked) => {
+          setExpanded(nextChecked);
+
+          if (!nextChecked) {
+            onChange('');
+            setLocalNumber('');
+            setError('');
+          }
+        }}
+      />
+      {checked ? (
+        <BlockStack gap="300">
+          <InlineGrid
+            columns={{ xs: 1, sm: ['oneThird', 'twoThirds'] }}
+            gap="300"
+            alignItems="end"
+          >
+            <Select
+              label="Country code"
+              options={PHONE_COUNTRY_OPTIONS}
+              value={country}
+              onChange={(nextCountry) => {
+                setCountry(nextCountry);
+                setError('');
+              }}
+              disabled={disabled}
+            />
+            <InlineGrid
+              columns={{ xs: 1, sm: ['twoThirds', 'oneThird'] }}
+              gap="300"
+              alignItems="end"
+            >
+              <TextField
+                label="Phone number"
+                value={localNumber}
+                onChange={(nextValue) => {
+                  setLocalNumber(nextValue);
+                  setError('');
+                }}
+                placeholder="123456789"
+                type="tel"
+                autoComplete="off"
+                disabled={disabled}
+                error={error}
+              />
+              <InlineStack align="start">
+                <Button
+                  onClick={addPhoneNumber}
+                  disabled={disabled || !localNumber.trim()}
+                >
+                  Add
+                </Button>
+              </InlineStack>
+            </InlineGrid>
+          </InlineGrid>
+          <Text as="p" tone="subdued">
+            Enter the phone number without the leading zero.
+          </Text>
+          <BlockStack gap="200">
+            <Text as="h3" variant="headingSm">
+              Blocked phone numbers
+            </Text>
+            <InlineStack gap="200" wrap>
+              {phoneNumbers.map((phone) => (
+                <Tag
+                  key={phone}
+                  onRemove={() =>
+                    onChange(
+                      phoneNumbers
+                        .filter((current) => current !== phone)
+                        .join(', '),
+                    )
+                  }
+                  disabled={disabled}
+                >
+                  {phone}
+                </Tag>
+              ))}
+            </InlineStack>
+          </BlockStack>
+        </BlockStack>
       ) : null}
     </BlockStack>
   );

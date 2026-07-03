@@ -37,3 +37,16 @@ export const COUNTRY_OPTIONS = COUNTRY_CODES.map((code) => ({
   value: code,
   label: `${displayNames?.of(code) || code} (${code})`,
 }));
+
+export const PHONE_COUNTRY_OPTIONS = getCountries()
+  .map((code) => {
+    const callingCode = getCountryCallingCode(code);
+
+    return {
+      value: code,
+      label: `${displayNames?.of(code) || code} (+${callingCode})`,
+      callingCode,
+    };
+  })
+  .sort((left, right) => left.label.localeCompare(right.label));
+import { getCountries, getCountryCallingCode } from 'libphonenumber-js';
