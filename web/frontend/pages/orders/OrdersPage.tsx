@@ -4,6 +4,8 @@ import {
   Card,
   DescriptionList,
   Divider,
+  EmptySearchResult,
+  IndexTable,
   InlineStack,
   Modal,
   Pagination,
@@ -34,7 +36,6 @@ import {
   formatDateTime,
   formatMoney,
   searchFieldStyle,
-  selectedRowStyle,
   tableStyle,
   tableWrapStyle,
   timelineItemStyle,
@@ -190,57 +191,85 @@ function OrdersTable({
   selectedOrderId: number | null;
   onSelect: (id: number) => void;
 }) {
-  if (orders.length === 0) {
-    return <EmptyText text="No COD orders match this filter yet." />;
-  }
-
   return (
-    <div style={tableWrapStyle}>
-      <table style={tableStyle}>
-        <thead>
-          <tr>
-            <Th>Order</Th>
-            <Th>Customer</Th>
-            <Th>Amount</Th>
-            <Th>Status</Th>
-            <Th>Risk</Th>
-            <Th>Expires</Th>
-            <Th>Actions</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((order) => (
-            <tr
-              key={order.id}
-              style={
-                selectedOrderId === order.id ? selectedRowStyle : undefined
-              }
+    <IndexTable
+      resourceName={{ singular: 'order', plural: 'orders' }}
+      itemCount={orders.length}
+      selectable={false}
+      hasZebraStriping
+      lastColumnSticky
+      headings={[
+        { title: 'Order' },
+        { title: 'Customer' },
+        { title: 'Amount', alignment: 'end' },
+        { title: 'Status' },
+        {
+          title: 'Risk score',
+          tooltipContent:
+            'Orders scoring 50 or more are marked for review.',
+        },
+        { title: 'Expires' },
+        { title: 'Actions', alignment: 'end' },
+      ]}
+      emptyState={
+        <EmptySearchResult
+          title="No COD orders found"
+          description="Try changing the status filter or search query."
+          withIllustration
+        />
+      }
+    >
+      {orders.map((order, index) => (
+        <IndexTable.Row
+          id={String(order.id)}
+          key={order.id}
+          position={index}
+          selected={selectedOrderId === order.id}
+        >
+          <IndexTable.Cell>
+            <Text as="span" fontWeight="semibold">
+              {order.orderName || '#' + order.id}
+            </Text>
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            <BlockStack gap="100">
+              <Text as="span">{order.customerName || 'Unknown'}</Text>
+              <Text as="span" tone="subdued">
+                {order.customerPhone || order.customerEmail || 'No contact'}
+              </Text>
+            </BlockStack>
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            <Text as="span" alignment="end" numeric>
+              {formatMoney(order.totalAmount, order.currency || 'VND')}
+            </Text>
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            <StatusBadge status={order.status} />
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            <Text
+              as="span"
+              tone={order.riskScore >= 50 ? 'caution' : undefined}
+              fontWeight={order.riskScore >= 50 ? 'semibold' : 'regular'}
+              numeric
             >
-              <Td>{order.orderName || '#' + order.id}</Td>
-              <Td>
-                <BlockStack gap="100">
-                  <Text as="span">{order.customerName || 'Unknown'}</Text>
-                  <Text as="span" tone="subdued">
-                    {order.customerPhone || order.customerEmail || 'No contact'}
-                  </Text>
-                </BlockStack>
-              </Td>
-              <Td>{formatMoney(order.totalAmount, order.currency || 'VND')}</Td>
-              <Td>
-                <StatusBadge status={order.status} />
-              </Td>
-              <Td>{order.riskScore}</Td>
-              <Td>{formatDateTime(order.expiresAt)}</Td>
-              <Td>
-                <Button size="slim" onClick={() => onSelect(order.id)}>
-                  View details
-                </Button>
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+              {order.riskScore}
+            </Text>
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            {formatDateTime(order.expiresAt)}
+          </IndexTable.Cell>
+          <IndexTable.Cell>
+            <InlineStack align="end">
+              <Button size="slim" onClick={() => onSelect(order.id)}>
+                View details
+              </Button>
+            </InlineStack>
+          </IndexTable.Cell>
+        </IndexTable.Row>
+      ))}
+    </IndexTable>
   );
 }
 
