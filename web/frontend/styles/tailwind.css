@@ -1,1 +1,44 @@
 @tailwind utilities;
+
+#cod-orders-table table {
+  width: 100%;
+  min-width: 1100px;
+  table-layout: fixed;
+}
+
+#cod-orders-table th:nth-child(1),
+#cod-orders-table td:nth-child(1) {
+  width: 8%;
+}
+
+#cod-orders-table th:nth-child(2),
+#cod-orders-table td:nth-child(2) {
+  width: 25%;
+}
+
+#cod-orders-table th:nth-child(3),
+#cod-orders-table td:nth-child(3) {
+  width: 14%;
+  padding-right: 32px;
+}
+
+#cod-orders-table th:nth-child(4),
+#cod-orders-table td:nth-child(4) {
+  width: 14%;
+  padding-left: 24px;
+}
+
+#cod-orders-table th:nth-child(5),
+#cod-orders-table td:nth-child(5) {
+  width: 14%;
+}
+
+#cod-orders-table th:nth-child(6),
+#cod-orders-table td:nth-child(6) {
+  width: 13%;
+}
+
+#cod-orders-table th:nth-child(7),
+#cod-orders-table td:nth-child(7) {
+  width: 12%;
+}

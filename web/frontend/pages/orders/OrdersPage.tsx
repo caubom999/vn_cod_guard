@@ -184,77 +184,81 @@ function OrdersTable({
   onSelect: (id: number) => void;
 }) {
   return (
-    <IndexTable
-      resourceName={{ singular: 'order', plural: 'orders' }}
-      itemCount={orders.length}
-      selectable={false}
-      hasZebraStriping
-      lastColumnSticky
-      headings={[
-        { title: 'Order' },
-        { title: 'Customer' },
-        { title: 'Amount', alignment: 'end' },
-        { title: 'Status' },
-        {
-          title: 'Risk score',
-          tooltipContent:
-            'Orders scoring 50 or more are marked for review.',
-        },
-        { title: 'Expires' },
-        { title: 'Actions', alignment: 'end' },
-      ]}
-      emptyState={
-        <EmptySearchResult
-          title="No COD orders found"
-          description="Try changing the status filter or search query."
-          withIllustration
-        />
-      }
-    >
-      {orders.map((order, index) => (
-        <IndexTable.Row
-          id={String(order.id)}
-          key={order.id}
-          position={index}
-          selected={selectedOrderId === order.id}
-        >
-          <IndexTable.Cell>
-            <Text as="span" fontWeight="semibold">
-              {order.orderName || '#' + order.id}
-            </Text>
-          </IndexTable.Cell>
-          <IndexTable.Cell>
-            <BlockStack gap="100">
-              <Text as="span">{order.customerName || 'Unknown'}</Text>
-              <Text as="span" tone="subdued">
-                {order.customerPhone || order.customerEmail || 'No contact'}
+    <Box id="cod-orders-table">
+      <IndexTable
+        resourceName={{ singular: 'order', plural: 'orders' }}
+        itemCount={orders.length}
+        selectable={false}
+        hasZebraStriping
+        lastColumnSticky
+        headings={[
+          { title: 'Order' },
+          { title: 'Customer' },
+          { title: 'Amount', alignment: 'end' },
+          { title: 'Status' },
+          {
+            title: 'Risk score',
+            tooltipContent:
+              'Orders scoring 50 or more are marked for review.',
+          },
+          { title: 'Expires' },
+          { title: 'Actions', alignment: 'end' },
+        ]}
+        emptyState={
+          <EmptySearchResult
+            title="No COD orders found"
+            description="Try changing the status filter or search query."
+            withIllustration
+          />
+        }
+      >
+        {orders.map((order, index) => (
+          <IndexTable.Row
+            id={String(order.id)}
+            key={order.id}
+            position={index}
+            selected={selectedOrderId === order.id}
+          >
+            <IndexTable.Cell>
+              <Text as="span" fontWeight="semibold">
+                {order.orderName || '#' + order.id}
               </Text>
-            </BlockStack>
-          </IndexTable.Cell>
-          <IndexTable.Cell>
-            <Text as="span" alignment="end" numeric>
-              {formatMoney(order.totalAmount, order.currency || 'VND')}
-            </Text>
-          </IndexTable.Cell>
-          <IndexTable.Cell>
-            <StatusBadge status={order.status} />
-          </IndexTable.Cell>
-          <IndexTable.Cell>
-            <RiskScoreBadge score={order.riskScore} />
-          </IndexTable.Cell>
-          <IndexTable.Cell>
-            {formatDateTime(order.expiresAt)}
-          </IndexTable.Cell>
-          <IndexTable.Cell>
-            <InlineStack align="end">
-              <Button size="slim" onClick={() => onSelect(order.id)}>
-                View details
-              </Button>
-            </InlineStack>
-          </IndexTable.Cell>
-        </IndexTable.Row>
-      ))}
-    </IndexTable>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              <BlockStack gap="100">
+                <Text as="span">{order.customerName || 'Unknown'}</Text>
+                <Text as="span" tone="subdued">
+                  {order.customerPhone ||
+                    order.customerEmail ||
+                    'No contact'}
+                </Text>
+              </BlockStack>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              <Text as="span" alignment="end" numeric>
+                {formatMoney(order.totalAmount, order.currency || 'VND')}
+              </Text>
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              <StatusBadge status={order.status} />
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              <RiskScoreBadge score={order.riskScore} />
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              {formatDateTime(order.expiresAt)}
+            </IndexTable.Cell>
+            <IndexTable.Cell>
+              <InlineStack align="end">
+                <Button size="slim" onClick={() => onSelect(order.id)}>
+                  View details
+                </Button>
+              </InlineStack>
+            </IndexTable.Cell>
+          </IndexTable.Row>
+        ))}
+      </IndexTable>
+    </Box>
   );
 }
 
