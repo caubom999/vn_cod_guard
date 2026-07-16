@@ -1,7 +1,7 @@
 import type {
   CartDeliveryOptionsTransformRunInput,
   CartDeliveryOptionsTransformRunResult,
-} from "../generated/api";
+} from '../generated/api';
 
 const NO_CHANGES: CartDeliveryOptionsTransformRunResult = {
   operations: [],
@@ -31,7 +31,7 @@ export function cartDeliveryOptionsTransformRun(
     subtotal < configuration.hideBelowOrderTotal;
   const isAboveMaximum =
     configuration.hideAboveOrderTotal != null &&
-    subtotal > configuration.hideAboveOrderTotal;
+    subtotal >= configuration.hideAboveOrderTotal;
 
   const normalizedName = shippingMethodName.toLowerCase();
   const hideForCart = isBelowMinimum || isAboveMaximum;
