@@ -1,3 +1,13 @@
+export const COD_DELIVERY_CUSTOMIZATION = `#graphql
+  query CodDeliveryCustomization($id: ID!) {
+    node(id: $id) {
+      ... on DeliveryCustomization {
+        id
+      }
+    }
+  }
+`;
+
 export const CREATE_COD_DELIVERY_CUSTOMIZATION = `#graphql
   mutation CreateCodDeliveryCustomization(
     $deliveryCustomization: DeliveryCustomizationInput!

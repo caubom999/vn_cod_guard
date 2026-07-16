@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CodPaymentRule, Prisma, Shop } from '@prisma/client';
 import {
+  COD_PAYMENT_CUSTOMIZATION,
   CREATE_COD_PAYMENT_CUSTOMIZATION,
   SET_COD_PAYMENT_ACTIVATION,
   SET_COD_PAYMENT_CONFIGURATION,
@@ -557,24 +558,54 @@ export class CodPaymentRuleService {
         );
       }
 
-      let shopifyMetafieldId = current.shopifyMetafieldId;
+      const customizationId = current.shopifyPaymentCustomizationId;
 
-      if (rule.enabled) {
-        shopifyMetafieldId = await this.setShopifyConfiguration(
+      if (
+        !(await this.shopifyCustomizationExists(shop.domain, customizationId))
+      ) {
+        this.logger.warn(
+          `Recreating missing COD payment customization ${customizationId} for ${shop.domain}`,
+        );
+        return await this.createShopifyCustomization(
           shop.domain,
-          current.shopifyPaymentCustomizationId,
+          rule.enabled,
           configurationValue,
         );
       }
 
-      await this.setShopifyActivation(
-        shop.domain,
-        current.shopifyPaymentCustomizationId,
-        rule.enabled,
-      );
+      let shopifyMetafieldId = current.shopifyMetafieldId;
+
+      try {
+        if (rule.enabled) {
+          shopifyMetafieldId = await this.setShopifyConfiguration(
+            shop.domain,
+            customizationId,
+            configurationValue,
+          );
+        }
+
+        await this.setShopifyActivation(
+          shop.domain,
+          customizationId,
+          rule.enabled,
+        );
+      } catch (error) {
+        if (!this.isMissingShopifyCustomizationError(error)) {
+          throw error;
+        }
+
+        this.logger.warn(
+          `Recreating stale COD payment customization ${customizationId} for ${shop.domain}`,
+        );
+        return await this.createShopifyCustomization(
+          shop.domain,
+          rule.enabled,
+          configurationValue,
+        );
+      }
 
       return {
-        shopifyPaymentCustomizationId: current.shopifyPaymentCustomizationId,
+        shopifyPaymentCustomizationId: customizationId,
         shopifyMetafieldId,
       };
     } catch (error) {
@@ -588,6 +619,36 @@ export class CodPaymentRuleService {
         `Could not update Shopify payment rule: ${message}`,
       );
     }
+  }
+
+  private async shopifyCustomizationExists(
+    shopDomain: string,
+    customizationId: string,
+  ) {
+    const response = await this.shopify.graphql(
+      shopDomain,
+      COD_PAYMENT_CUSTOMIZATION,
+      { id: customizationId },
+    );
+    const data = (
+      response as {
+        data?: { node?: { id?: string } | null };
+      }
+    )?.data;
+
+    if (!data || !Object.prototype.hasOwnProperty.call(data, 'node')) {
+      throw new Error(
+        'Shopify did not return the payment customization lookup result',
+      );
+    }
+
+    return data.node?.id === customizationId;
+  }
+
+  private isMissingShopifyCustomizationError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    return /could not find payment customizations? with ids?/i.test(message);
   }
 
   private async createShopifyCustomization(

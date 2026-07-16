@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CodDeliveryRule, Prisma, Shop } from '@prisma/client';
 import {
+  COD_DELIVERY_CUSTOMIZATION,
   CREATE_COD_DELIVERY_CUSTOMIZATION,
   SET_COD_DELIVERY_ACTIVATION,
   SET_COD_DELIVERY_CONFIGURATION,
@@ -373,24 +374,54 @@ export class CodDeliveryRuleService {
         );
       }
 
-      let shopifyMetafieldId = current.shopifyMetafieldId;
+      const customizationId = current.shopifyDeliveryCustomizationId;
 
-      if (rule.enabled) {
-        shopifyMetafieldId = await this.setShopifyConfiguration(
+      if (
+        !(await this.shopifyCustomizationExists(shop.domain, customizationId))
+      ) {
+        this.logger.warn(
+          `Recreating missing COD delivery customization ${customizationId} for ${shop.domain}`,
+        );
+        return await this.createShopifyCustomization(
           shop.domain,
-          current.shopifyDeliveryCustomizationId,
-          configurationValue,
+          rule.enabled,
+          createMetafield,
         );
       }
 
-      await this.setShopifyActivation(
-        shop.domain,
-        current.shopifyDeliveryCustomizationId,
-        rule.enabled,
-      );
+      let shopifyMetafieldId = current.shopifyMetafieldId;
+
+      try {
+        if (rule.enabled) {
+          shopifyMetafieldId = await this.setShopifyConfiguration(
+            shop.domain,
+            customizationId,
+            configurationValue,
+          );
+        }
+
+        await this.setShopifyActivation(
+          shop.domain,
+          customizationId,
+          rule.enabled,
+        );
+      } catch (error) {
+        if (!this.isMissingShopifyCustomizationError(error)) {
+          throw error;
+        }
+
+        this.logger.warn(
+          `Recreating stale COD delivery customization ${customizationId} for ${shop.domain}`,
+        );
+        return await this.createShopifyCustomization(
+          shop.domain,
+          rule.enabled,
+          createMetafield,
+        );
+      }
 
       return {
-        shopifyDeliveryCustomizationId: current.shopifyDeliveryCustomizationId,
+        shopifyDeliveryCustomizationId: customizationId,
         shopifyMetafieldId,
       };
     } catch (error) {
@@ -404,6 +435,36 @@ export class CodDeliveryRuleService {
         `Could not update Shopify checkout rule: ${message}`,
       );
     }
+  }
+
+  private async shopifyCustomizationExists(
+    shopDomain: string,
+    customizationId: string,
+  ) {
+    const response = await this.shopify.graphql(
+      shopDomain,
+      COD_DELIVERY_CUSTOMIZATION,
+      { id: customizationId },
+    );
+    const data = (
+      response as {
+        data?: { node?: { id?: string } | null };
+      }
+    )?.data;
+
+    if (!data || !Object.prototype.hasOwnProperty.call(data, 'node')) {
+      throw new Error(
+        'Shopify did not return the delivery customization lookup result',
+      );
+    }
+
+    return data.node?.id === customizationId;
+  }
+
+  private isMissingShopifyCustomizationError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    return /could not find delivery customizations? with ids?/i.test(message);
   }
 
   private async createShopifyCustomization(
