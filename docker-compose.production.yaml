@@ -1,0 +1,102 @@
+services:
+  app:
+    container_name: vn-cod-guard-app
+    image: ${APP_IMAGE:?APP_IMAGE is required}
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      HOST: https://vtjr.online
+      APP_SCHEME: https
+      SHOPIFY_API_KEY: ${SHOPIFY_API_KEY}
+      SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET}
+      SHOPIFY_API_VERSION: ${SHOPIFY_API_VERSION:-2026-07}
+      SHOPIFY_SCOPES: ${SHOPIFY_SCOPES}
+      SHOPIFY_BILLING_TEST: ${SHOPIFY_BILLING_TEST:-false}
+      DATABASE_URL: mysql://${MYSQL_APP_USER}:${MYSQL_APP_PASSWORD}@mysql:3306/${MYSQL_DATABASE}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_APP_USER}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      SHOPIFY_SESSION_STORAGE: ${SHOPIFY_SESSION_STORAGE:-redis}
+      SHOPIFY_SESSION_REDIS_KEY_PREFIX: ${SHOPIFY_SESSION_REDIS_KEY_PREFIX:-shopify_sessions}
+      COD_AUTOMATION_WORKER_ENABLED: ${COD_AUTOMATION_WORKER_ENABLED:-true}
+      COD_AUTOMATION_WORKER_INTERVAL_MS: ${COD_AUTOMATION_WORKER_INTERVAL_MS:-30000}
+      COD_AUTOMATION_WORKER_BATCH_SIZE: ${COD_AUTOMATION_WORKER_BATCH_SIZE:-10}
+      COD_AUTOMATION_WORKER_MAX_ATTEMPTS: ${COD_AUTOMATION_WORKER_MAX_ATTEMPTS:-3}
+      COD_AUTOMATION_WORKER_STALE_RUNNING_MS: ${COD_AUTOMATION_WORKER_STALE_RUNNING_MS:-600000}
+      COD_AUTOMATION_WORKER_RETRY_BASE_MS: ${COD_AUTOMATION_WORKER_RETRY_BASE_MS:-60000}
+      COD_AUTOMATION_WORKER_RETRY_MAX_MS: ${COD_AUTOMATION_WORKER_RETRY_MAX_MS:-900000}
+      COD_AVERAGE_SHIPPING_COST: ${COD_AVERAGE_SHIPPING_COST:-30000}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-resend}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+      EMAIL_REPLY_TO: ${EMAIL_REPLY_TO:-}
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL}
+    ports:
+      - '127.0.0.1:${APP_PORT:-8080}:8080'
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://127.0.0.1:8080/health').then(r =>
+          process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_APP_USER}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -u root -p"$${MYSQL_ROOT_PASSWORD}" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      - --appendonly
+      - 'yes'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli -a "$${REDIS_PASSWORD}" ping | grep PONG
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
