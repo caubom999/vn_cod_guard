@@ -1,0 +1,44 @@
+{
+  "payload": {
+    "export": "cart-delivery-options-transform-run",
+    "target": "cart.delivery-options.transform.run",
+    "input": {
+      "cart": {
+        "cost": {
+          "subtotalAmount": {
+            "amount": "1000000"
+          }
+        },
+        "deliveryGroups": [
+          {
+            "deliveryOptions": [
+              {
+                "handle": "cod",
+                "title": "Standard - Cash on Delivery"
+              }
+            ]
+          }
+        ]
+      },
+      "deliveryCustomization": {
+        "metafield": {
+          "jsonValue": {
+            "enabled": true,
+            "shippingMethodName": "Standard - Cash on Delivery",
+            "hideBelowOrderTotal": 100000,
+            "hideAboveOrderTotal": 1000000
+          }
+        }
+      }
+    },
+    "output": {
+      "operations": [
+        {
+          "deliveryOptionHide": {
+            "deliveryOptionHandle": "cod"
+          }
+        }
+      ]
+    }
+  }
+}

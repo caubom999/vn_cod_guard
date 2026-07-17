@@ -56,6 +56,19 @@ export class RiskController {
     return this.risks.listBlacklist(request.shop.id);
   }
 
+  @Get('blacklist-scoring')
+  getBlacklistScoring(@Req() request: AuthenticatedRequest) {
+    return this.risks.getBlacklistScoring(request.shop.id);
+  }
+
+  @Put('blacklist-scoring')
+  updateBlacklistScoring(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: Record<string, unknown>,
+  ) {
+    return this.risks.updateBlacklistScoring(request.shop.id, body);
+  }
+
   @Post('blacklist')
   createBlacklistEntry(
     @Req() request: AuthenticatedRequest,

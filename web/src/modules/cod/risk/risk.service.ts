@@ -50,7 +50,7 @@ export class RiskService {
       }
 
       score += action.score;
-      reasons.push('rule:' + action.reason);
+      reasons.push(`rule:${action.score}:${action.reason}`);
     }
 
     return {
@@ -140,6 +140,50 @@ export class RiskService {
     return this.risks.deleteBlacklistEntry(id, shopId);
   }
 
+  getBlacklistScoring(shopId: number) {
+    return this.risks.getBlacklistScoring(shopId);
+  }
+
+  updateBlacklistScoring(
+    shopId: number,
+    dto: Record<string, unknown>,
+  ) {
+    const data: {
+      blacklistPhoneEnabled?: boolean;
+      blacklistPhoneScore?: number;
+      blacklistEmailEnabled?: boolean;
+      blacklistEmailScore?: number;
+      blacklistAddressEnabled?: boolean;
+      blacklistAddressScore?: number;
+    } = {};
+
+    for (const key of [
+      'blacklistPhoneEnabled',
+      'blacklistEmailEnabled',
+      'blacklistAddressEnabled',
+    ] as const) {
+      if (dto[key] !== undefined) {
+        if (typeof dto[key] !== 'boolean') {
+          throw new BadRequestException(`${key} must be a boolean`);
+        }
+
+        data[key] = dto[key];
+      }
+    }
+
+    for (const key of [
+      'blacklistPhoneScore',
+      'blacklistEmailScore',
+      'blacklistAddressScore',
+    ] as const) {
+      if (dto[key] !== undefined) {
+        data[key] = this.integerInRange(dto[key], key, 1, 100);
+      }
+    }
+
+    return this.risks.updateBlacklistScoring(shopId, data);
+  }
+
   private async evaluateBlacklist(input: RiskEvaluationInput) {
     const candidates = this.getBlacklistCandidates(input).map((candidate) => ({
       type: candidate.type,
@@ -149,6 +193,7 @@ export class RiskService {
       ),
     }));
     const hits = await this.risks.findBlacklistHits(input.shopId, candidates);
+    const scoring = await this.risks.getBlacklistScoring(input.shopId);
 
     await this.risks.markBlacklistHits(hits.map((hit) => hit.id));
 
@@ -156,15 +201,24 @@ export class RiskService {
     const reasons: string[] = [];
 
     for (const hit of hits) {
-      if (hit.type === BlacklistEntryType.PHONE) {
-        score += 80;
-        reasons.push('blacklist:phone');
-      } else if (hit.type === BlacklistEntryType.EMAIL) {
-        score += 70;
-        reasons.push('blacklist:email');
-      } else if (hit.type === BlacklistEntryType.ADDRESS) {
-        score += 70;
-        reasons.push('blacklist:address');
+      if (
+        hit.type === BlacklistEntryType.PHONE &&
+        scoring.blacklistPhoneEnabled
+      ) {
+        score += scoring.blacklistPhoneScore;
+        reasons.push(`blacklist:phone:${scoring.blacklistPhoneScore}`);
+      } else if (
+        hit.type === BlacklistEntryType.EMAIL &&
+        scoring.blacklistEmailEnabled
+      ) {
+        score += scoring.blacklistEmailScore;
+        reasons.push(`blacklist:email:${scoring.blacklistEmailScore}`);
+      } else if (
+        hit.type === BlacklistEntryType.ADDRESS &&
+        scoring.blacklistAddressEnabled
+      ) {
+        score += scoring.blacklistAddressScore;
+        reasons.push(`blacklist:address:${scoring.blacklistAddressScore}`);
       }
     }
 

@@ -73,18 +73,6 @@ function MessageTemplatesScreen() {
 
   return (
     <BlockStack gap="400">
-      <InlineStack align="space-between" blockAlign="center">
-        <BlockStack gap="100">
-          <Text as="h1" variant="headingLg">
-            Message templates
-          </Text>
-          <Text as="p" tone="subdued">
-            Edit the message copy, choose a visual template, and preview the
-            email customers will receive.
-          </Text>
-        </BlockStack>
-      </InlineStack>
-
       {isLoading ? (
         <Card>
           <SkeletonBodyText lines={10} />
@@ -124,7 +112,11 @@ function MessageTemplatesScreen() {
                     </Button>
                   </InlineStack>
 
-                  <InlineGrid columns={['oneThird', 'twoThirds']} gap="600">
+                  <InlineGrid
+                    columns={{ xs: 1, lg: ['oneThird', 'twoThirds'] }}
+                    gap="600"
+                    alignItems="start"
+                  >
                     <BlockStack gap="300">
                       <Checkbox
                         label="Enable template"

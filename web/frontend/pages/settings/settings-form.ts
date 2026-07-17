@@ -43,6 +43,10 @@ export function validateSettingsForm(
 ): SettingsValidation {
   const errors: SettingsValidation['errors'] = {};
 
+  if (!form.codPaymentNames[0]?.trim()) {
+    errors.codPaymentNames = 'Select a COD payment method.';
+  }
+
   validateIntegerRange(
     form.confirmationDeadlineMinutes,
     1,

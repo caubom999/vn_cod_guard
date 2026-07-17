@@ -44,6 +44,16 @@ export type CodOrderSummary = {
   createdAt: string;
 };
 
+export type PaginatedCodOrders = {
+  items: CodOrderSummary[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+};
+
 export type CodOrderDetail = CodOrderSummary & {
   shopifyOrderGid: string;
   orderNumber?: string | null;
@@ -122,6 +132,15 @@ export type BlacklistEntry = {
   updatedAt: string;
 };
 
+export type BlacklistScoringSettings = {
+  blacklistPhoneEnabled: boolean;
+  blacklistPhoneScore: number;
+  blacklistEmailEnabled: boolean;
+  blacklistEmailScore: number;
+  blacklistAddressEnabled: boolean;
+  blacklistAddressScore: number;
+};
+
 export function useCodOverview() {
   const api = useApi();
 
@@ -131,18 +150,24 @@ export function useCodOverview() {
   });
 }
 
-export function useCodOrders(status?: string, search?: string) {
+export function useCodOrders(
+  status: string | undefined,
+  search: string | undefined,
+  page: number,
+  pageSize: number,
+) {
   const api = useApi();
 
   return useQuery({
-    queryKey: ['cod-orders', status || 'ALL', search || ''],
+    queryKey: ['cod-orders', status || 'ALL', search || '', page, pageSize],
     queryFn: () =>
-      api<CodOrderSummary[]>(
+      api<PaginatedCodOrders>(
         '/api/cod/orders?' +
           new URLSearchParams({
             ...(status ? { status } : {}),
             ...(search ? { search } : {}),
-            limit: '100',
+            page: String(page),
+            limit: String(pageSize),
           }).toString(),
       ),
   });
@@ -197,12 +222,66 @@ export function useRiskRules() {
   });
 }
 
+export function useUpdateRiskRule() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...updates
+    }: {
+      id: number;
+      enabled: boolean;
+      conditionJson: unknown;
+      actionJson: unknown;
+    }) =>
+      api<RiskRule>('/api/cod/risk/rules/' + id, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      }),
+    onSuccess: (updatedRule) => {
+      queryClient.setQueryData<RiskRule[]>(['risk-rules'], (rules = []) =>
+        rules.map((rule) =>
+          rule.id === updatedRule.id ? updatedRule : rule,
+        ),
+      );
+    },
+  });
+}
+
 export function useBlacklist() {
   const api = useApi();
 
   return useQuery({
     queryKey: ['blacklist'],
     queryFn: () => api<BlacklistEntry[]>('/api/cod/risk/blacklist'),
+  });
+}
+
+export function useBlacklistScoring() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: ['blacklist-scoring'],
+    queryFn: () =>
+      api<BlacklistScoringSettings>('/api/cod/risk/blacklist-scoring'),
+  });
+}
+
+export function useUpdateBlacklistScoring() {
+  const api = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (settings: BlacklistScoringSettings) =>
+      api<BlacklistScoringSettings>('/api/cod/risk/blacklist-scoring', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      }),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(['blacklist-scoring'], settings);
+    },
   });
 }
 

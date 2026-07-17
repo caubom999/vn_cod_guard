@@ -3,15 +3,21 @@ import {
   Banner,
   BlockStack,
   Card,
+  InlineGrid,
   InlineStack,
   SkeletonBodyText,
   Text,
 } from '@shopify/polaris';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { CodOrderStatus } from '../../hook/cod-dashboard';
+import { getRiskBand } from '../../utils/risk-score';
 
 export function MetricGrid({ children }: { children: ReactNode }) {
-  return <div style={metricGridStyle}>{children}</div>;
+  return (
+    <InlineGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="400">
+      {children}
+    </InlineGrid>
+  );
 }
 
 export function MetricCard({
@@ -63,6 +69,12 @@ export function StatusBadge({ status }: { status: CodOrderStatus }) {
   return <Badge tone={item.tone}>{item.label}</Badge>;
 }
 
+export function RiskScoreBadge({ score }: { score: number }) {
+  const band = getRiskBand(score);
+
+  return <Badge tone={band.tone}>{`${score} · ${band.label}`}</Badge>;
+}
+
 export function ErrorBanner({ error }: { error: unknown }) {
   return (
     <Banner tone="critical">
@@ -77,14 +89,6 @@ export function EmptyText({ text }: { text: string }) {
       {text}
     </Text>
   );
-}
-
-export function Th({ children }: { children: ReactNode }) {
-  return <th style={thStyle}>{children}</th>;
-}
-
-export function Td({ children }: { children: ReactNode }) {
-  return <td style={tdStyle}>{children}</td>;
 }
 
 export function formatPercent(value?: number | null) {
@@ -126,14 +130,6 @@ export function formatDateTime(value?: string | null) {
   }).format(new Date(timestamp));
 }
 
-export function formatJson(value: unknown) {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return '-';
-  }
-}
-
 export function compact(values: Array<string | null | undefined>) {
   return values.filter(Boolean).join(', ');
 }
@@ -148,56 +144,3 @@ function toneLabel(tone: 'success' | 'attention' | 'critical' | 'warning') {
 
   return labels[tone];
 }
-
-export const metricGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '16px',
-};
-
-export const tableWrapStyle: CSSProperties = {
-  overflowX: 'auto',
-};
-
-export const filterFieldStyle: CSSProperties = {
-  minWidth: 220,
-};
-
-export const searchFieldStyle: CSSProperties = {
-  minWidth: 320,
-  flex: 1,
-};
-
-export const dividerWrapStyle: CSSProperties = {
-  paddingTop: 20,
-};
-
-export const tableStyle: CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  minWidth: 760,
-};
-
-const thStyle: CSSProperties = {
-  padding: '12px 10px',
-  borderBottom: '1px solid #dfe3e8',
-  textAlign: 'left',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: CSSProperties = {
-  padding: '12px 10px',
-  borderBottom: '1px solid #ebedf0',
-  verticalAlign: 'top',
-};
-
-export const selectedRowStyle: CSSProperties = {
-  background: '#f1f8ff',
-};
-
-export const timelineItemStyle: CSSProperties = {
-  border: '1px solid #dfe3e8',
-  borderRadius: 8,
-  padding: 12,
-};

@@ -31,9 +31,7 @@ export default function Helpdesk(props: HelpdeskProps) {
           const { title, helpText, ...rest } = method;
           return (
             <BlockStack key={idx} gap={'100'}>
-              <div>
-                <Button {...rest}>{title as any}</Button>
-              </div>
+              <Button {...rest}>{title as any}</Button>
               {helpText ? (
                 typeof helpText === 'string' ? (
                   <Text as="p" tone="subdued">

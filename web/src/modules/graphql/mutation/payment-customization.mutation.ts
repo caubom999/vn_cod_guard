@@ -1,3 +1,13 @@
+export const COD_PAYMENT_CUSTOMIZATION = `#graphql
+  query CodPaymentCustomization($id: ID!) {
+    node(id: $id) {
+      ... on PaymentCustomization {
+        id
+      }
+    }
+  }
+`;
+
 export const CREATE_COD_PAYMENT_CUSTOMIZATION = `#graphql
   mutation CreateCodPaymentCustomization(
     $paymentCustomization: PaymentCustomizationInput!

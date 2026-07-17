@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export type OrderListFilters = {
   status?: CodOrderStatus | 'RISKY';
   search?: string;
+  page?: number;
   limit?: number;
 };
 
@@ -50,7 +51,7 @@ export class CodDashboardRepository {
     });
   }
 
-  listOrders(shopId: number, filters: OrderListFilters) {
+  async listOrders(shopId: number, filters: OrderListFilters) {
     const where: Prisma.CodOrderWhereInput = {
       shopId,
       isCod: true,
@@ -72,26 +73,42 @@ export class CodDashboardRepository {
       ];
     }
 
-    return this.prisma.codOrder.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: filters.limit || 50,
-      select: {
-        id: true,
-        orderName: true,
-        customerName: true,
-        customerEmail: true,
-        customerPhone: true,
-        totalAmount: true,
-        currency: true,
-        status: true,
-        riskScore: true,
-        riskReasonJson: true,
-        reminderCount: true,
-        expiresAt: true,
-        createdAt: true,
+    const page = filters.page || 1;
+    const pageSize = filters.limit || 10;
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.codOrder.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          orderName: true,
+          customerName: true,
+          customerEmail: true,
+          customerPhone: true,
+          totalAmount: true,
+          currency: true,
+          status: true,
+          riskScore: true,
+          riskReasonJson: true,
+          reminderCount: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.codOrder.count({ where }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
       },
-    });
+    };
   }
 
   findOrderDetail(shopId: number, id: number) {

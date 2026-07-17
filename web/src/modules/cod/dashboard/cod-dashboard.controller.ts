@@ -29,12 +29,14 @@ export class CodDashboardController {
     @Req() request: AuthenticatedRequest,
     @Query('status') status?: string,
     @Query('search') search?: string,
+    @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     return this.dashboard.listOrders(request.shop.id, {
       status: this.parseStatus(status),
       search,
-      limit: limit ? Number(limit) : undefined,
+      page: this.parsePage(page),
+      limit: this.parseLimit(limit),
     });
   }
 
@@ -60,5 +62,15 @@ export class CodDashboardController {
     }
 
     return undefined;
+  }
+
+  private parsePage(value?: string) {
+    const page = Number(value || 1);
+    return Number.isInteger(page) && page > 0 ? page : 1;
+  }
+
+  private parseLimit(value?: string) {
+    const limit = Number(value || 10);
+    return [10, 20, 50, 100].includes(limit) ? limit : 10;
   }
 }

@@ -4,7 +4,6 @@ import { ErrorBanner } from '../../components/dashboard/shared';
 import {
   type CodDeliveryRule,
   useCodDeliveryRule,
-  useCodShippingMethods,
   useUpdateCodDeliveryRule,
 } from '../../hook/cod-delivery-rule';
 import {
@@ -12,7 +11,6 @@ import {
   useUpdateCodFeeSetting,
 } from '../../hook/cod-fee-setting';
 import {
-  useCodPaymentMethods,
   useCodPaymentRule,
   useUpdateCodPaymentRule,
 } from '../../hook/cod-payment-rule';
@@ -39,8 +37,6 @@ import { AdvancedCodRulesSection } from './components/AdvancedCodRulesSection';
 import { CodDeliveryRuleSaveBar } from './components/CodDeliveryRuleSaveBar';
 import { CodFeeSettingsSection } from './components/CodFeeSettingsSection';
 import { HideCodShippingMethodSection } from './components/HideCodShippingMethodSection';
-import { PaymentMethodSection } from './components/PaymentMethodSection';
-import { ShippingMethodSection } from './components/ShippingMethodSection';
 
 function CodFeePage() {
   const [draft, setDraft] = useState<CodFeeDraft>(initialCodFeeDraft);
@@ -48,10 +44,8 @@ function CodFeePage() {
     initialCodPaymentRuleDraft,
   );
   const deliveryRule = useCodDeliveryRule();
-  const shippingMethods = useCodShippingMethods();
   const updateDeliveryRule = useUpdateCodDeliveryRule();
   const paymentRule = useCodPaymentRule();
-  const paymentMethods = useCodPaymentMethods();
   const updatePaymentRule = useUpdateCodPaymentRule();
   const feeSetting = useCodFeeSetting();
   const updateFeeSetting = useUpdateCodFeeSetting();
@@ -249,20 +243,16 @@ function CodFeePage() {
   return (
     <BlockStack gap="500">
       {deliveryRule.error ||
-      shippingMethods.error ||
       updateDeliveryRule.error ||
       paymentRule.error ||
-      paymentMethods.error ||
       updatePaymentRule.error ||
       feeSetting.error ||
       updateFeeSetting.error ? (
         <ErrorBanner
           error={
             deliveryRule.error ||
-            shippingMethods.error ||
             updateDeliveryRule.error ||
             paymentRule.error ||
-            paymentMethods.error ||
             updatePaymentRule.error ||
             feeSetting.error ||
             updateFeeSetting.error
@@ -270,35 +260,11 @@ function CodFeePage() {
         />
       ) : null}
 
-      <ShippingMethodSection
-        draft={draft}
-        setField={setField}
-        methods={shippingMethods.data?.methods || []}
-        nameError={shippingValidation.nameError}
-        isLoading={deliveryRule.isLoading}
-        isSyncing={shippingMethods.isFetching}
-        onSync={() => {
-          void shippingMethods.refetch();
-        }}
-      />
-
       <HideCodShippingMethodSection
         draft={draft}
         setField={setField}
         limitError={shippingValidation.limitError}
         isLoading={deliveryRule.isLoading}
-      />
-
-      <PaymentMethodSection
-        draft={paymentDraft}
-        setDraft={setPaymentDraft}
-        methods={paymentMethods.data?.methods || []}
-        nameError={paymentValidation.nameError}
-        isLoading={paymentRule.isLoading}
-        isSyncing={paymentMethods.isFetching}
-        onSync={() => {
-          void paymentMethods.refetch();
-        }}
       />
 
       <AdvancedCodRulesSection
