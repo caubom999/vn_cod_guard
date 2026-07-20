@@ -24,6 +24,7 @@ import { MessagingRepository } from './messaging/messaging.repository';
 import { MessagingService } from './messaging/messaging.service';
 import { MessageTemplateRenderer } from './messaging/message-template.renderer';
 import { EmailProvider } from './messaging/providers/email.provider';
+import { SmsProvider } from './messaging/providers/sms.provider';
 import { CodOrderProcessorService } from './orders/cod-order-processor.service';
 import { CodSettingsController } from './settings/cod-settings.controller';
 import { CodSettingsRepository } from './settings/cod-settings.repository';
@@ -35,6 +36,10 @@ import { RiskService } from './risk/risk.service';
 import { VerificationController } from './verification/verification.controller';
 import { VerificationRepository } from './verification/verification.repository';
 import { VerificationService } from './verification/verification.service';
+import { IntegrationSecretService } from './integrations/integration-secret.service';
+import { SmsIntegrationController } from './integrations/sms-integration.controller';
+import { SmsIntegrationRepository } from './integrations/sms-integration.repository';
+import { SmsIntegrationService } from './integrations/sms-integration.service';
 
 @Module({
   imports: [PrismaModule, ShopModule, ShopifyModule, BillingModule],
@@ -47,6 +52,7 @@ import { VerificationService } from './verification/verification.service';
     RiskController,
     CodDashboardController,
     MessageTemplateController,
+    SmsIntegrationController,
   ],
   providers: [
     CodDashboardService,
@@ -59,6 +65,10 @@ import { VerificationService } from './verification/verification.service';
     MessagingService,
     MessageTemplateRenderer,
     EmailProvider,
+    SmsProvider,
+    IntegrationSecretService,
+    SmsIntegrationService,
+    SmsIntegrationRepository,
     RiskService,
     RiskRepository,
     CodOrderProcessorService,

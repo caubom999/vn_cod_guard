@@ -29,6 +29,27 @@ Do not store the production environment file in GitLab artifacts or in the Git
 repository. Set `SHOPIFY_BILLING_TEST=false` for the public app. Verify the
 `vtjr.online` domain in Resend before using `confirm@vtjr.online`.
 
+Generate `INTEGRATION_ENCRYPTION_KEY` with a cryptographically secure random
+value of at least 32 characters. This key encrypts merchant-owned SMS provider
+credentials with AES-256-GCM. Back it up in the production secret manager and
+do not rotate it without a credential migration, because existing connections
+can't be decrypted after the key changes.
+
+The recommended SMS model is merchant-direct billing: each merchant connects
+their own provider on the **SMS connections** page and pays that provider
+directly. COD Guard stores only encrypted credentials and doesn't submit a
+Shopify SMS usage event for these connections. Global `TWILIO_*` environment
+variables are an optional platform-owned fallback and aren't required for
+merchant-direct connections.
+
+Keep `SHOPIFY_SMS_USAGE_BILLING_ENABLED=false` until all of the following are
+complete: the SMS sender is registered for every destination country, the
+provider has accepted a production test message, and Shopify App Pricing has an
+active usage meter whose handle exactly matches `SMS_USAGE_EVENT_HANDLE`. The
+application reports the number of SMS segments, not only the number of orders,
+because providers charge concatenated SMS per segment. This flag applies only
+to the optional platform-owned SMS account.
+
 Install `deploy/nginx/vtjr.online.conf` after checking the existing certificate
 paths:
 
@@ -68,15 +89,15 @@ In GitLab, open **Settings > CI/CD > Variables**. Configure production secrets
 as protected variables so they are available only on the protected `main`
 branch.
 
-| Variable | Type | Protected | Masked | Value |
-| --- | --- | --- | --- | --- |
-| `SHOPIFY_API_KEY` | Variable | No | No | Shopify app client ID; this is public and is also embedded in the frontend |
-| `SHOPIFY_APP_AUTOMATION_TOKEN` | Variable | Yes | Yes | Token generated in Shopify Dev Dashboard |
-| `DEPLOY_HOST` | Variable | Yes | No | `vtjr.online` |
-| `DEPLOY_USER` | Variable | Yes | No | Server deployment user, for example `deploy` |
-| `DEPLOY_PATH` | Variable | Yes | No | `/opt/vn-cod-guard` |
-| `SSH_PRIVATE_KEY` | File | Yes | No | Contents of `gitlab_deploy_key`, ending with a newline |
-| `SSH_KNOWN_HOSTS` | File | Yes | No | Contents of `ssh_known_hosts` |
+| Variable                       | Type     | Protected | Masked | Value                                                                      |
+| ------------------------------ | -------- | --------- | ------ | -------------------------------------------------------------------------- |
+| `SHOPIFY_API_KEY`              | Variable | No        | No     | Shopify app client ID; this is public and is also embedded in the frontend |
+| `SHOPIFY_APP_AUTOMATION_TOKEN` | Variable | Yes       | Yes    | Token generated in Shopify Dev Dashboard                                   |
+| `DEPLOY_HOST`                  | Variable | Yes       | No     | `vtjr.online`                                                              |
+| `DEPLOY_USER`                  | Variable | Yes       | No     | Server deployment user, for example `deploy`                               |
+| `DEPLOY_PATH`                  | Variable | Yes       | No     | `/opt/vn-cod-guard`                                                        |
+| `SSH_PRIVATE_KEY`              | File     | Yes       | No     | Contents of `gitlab_deploy_key`, ending with a newline                     |
+| `SSH_KNOWN_HOSTS`              | File     | Yes       | No     | Contents of `ssh_known_hosts`                                              |
 
 `CI_REGISTRY`, `CI_REGISTRY_IMAGE`, `CI_REGISTRY_USER`, and
 `CI_REGISTRY_PASSWORD` are provided automatically when the GitLab Container

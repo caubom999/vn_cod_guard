@@ -26,3 +26,12 @@ export const DEFAULT_VERIFICATION_EMAIL_TEMPLATE = {
     '{{shopName}}',
   ].join('\n'),
 };
+
+export const DEFAULT_VERIFICATION_SMS_TEMPLATE = {
+  type: MessageTemplateType.VERIFICATION,
+  channel: VerificationChannel.SMS,
+  locale: DEFAULT_MESSAGE_LOCALE,
+  templateKey: 'sms-1',
+  subject: null,
+  body: '{{shopName}}: Xac nhan don {{orderName}}, tong {{amount}} {{currency}}. Mo link de xac nhan hoac huy:',
+};

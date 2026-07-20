@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { VerificationChannel } from '@prisma/client';
 import { CodSettingsRepository } from './cod-settings.repository';
+import { SmsIntegrationService } from '../integrations/sms-integration.service';
 
 const CUSTOMER_VERIFICATION_CHANNELS = new Set<VerificationChannel>([
   VerificationChannel.EMAIL,
@@ -25,19 +26,29 @@ export type UpdateCodSettingsDto = {
 
 @Injectable()
 export class CodSettingsService {
-  constructor(private readonly settings: CodSettingsRepository) {}
+  constructor(
+    private readonly settings: CodSettingsRepository,
+    private readonly smsIntegrations: SmsIntegrationService,
+  ) {}
 
   async get(shopId: number) {
-    return this.toResponse(await this.settings.getOrCreate(shopId));
+    return this.toResponse(
+      await this.settings.getOrCreate(shopId),
+      await this.smsIntegrations.isAvailable(shopId),
+    );
   }
 
   async update(shopId: number, dto: UpdateCodSettingsDto) {
-    const data = this.validate(dto);
+    const smsAvailable = await this.smsIntegrations.isAvailable(shopId);
+    const data = this.validate(dto, smsAvailable);
 
-    return this.toResponse(await this.settings.update(shopId, data));
+    return this.toResponse(
+      await this.settings.update(shopId, data),
+      smsAvailable,
+    );
   }
 
-  private validate(dto: UpdateCodSettingsDto) {
+  private validate(dto: UpdateCodSettingsDto, smsAvailable: boolean) {
     const data: Record<string, unknown> = {};
 
     if (typeof dto.enabled === 'boolean') {
@@ -48,6 +59,12 @@ export class CodSettingsService {
       if (!CUSTOMER_VERIFICATION_CHANNELS.has(dto.defaultChannel)) {
         throw new BadRequestException(
           'Default channel must be Email, WhatsApp, or SMS',
+        );
+      }
+
+      if (dto.defaultChannel === VerificationChannel.SMS && !smsAvailable) {
+        throw new BadRequestException(
+          'Configure and enable an SMS connection first',
         );
       }
 
@@ -140,24 +157,27 @@ export class CodSettingsService {
     return tag;
   }
 
-  private toResponse(setting: {
-    id: number;
-    shopId: number;
-    enabled: boolean;
-    defaultChannel: VerificationChannel;
-    confirmationDeadlineMinutes: number;
-    reminderDelayMinutes: number;
-    maxReminders: number;
-    autoCancelUnconfirmed: boolean;
-    pendingTag: string;
-    confirmedTag: string;
-    cancelledTag: string;
-    expiredTag: string;
-    riskTag: string;
-    codPaymentNamesJson: unknown;
-    createdAt: Date;
-    updatedAt: Date;
-  }) {
+  private toResponse(
+    setting: {
+      id: number;
+      shopId: number;
+      enabled: boolean;
+      defaultChannel: VerificationChannel;
+      confirmationDeadlineMinutes: number;
+      reminderDelayMinutes: number;
+      maxReminders: number;
+      autoCancelUnconfirmed: boolean;
+      pendingTag: string;
+      confirmedTag: string;
+      cancelledTag: string;
+      expiredTag: string;
+      riskTag: string;
+      codPaymentNamesJson: unknown;
+      createdAt: Date;
+      updatedAt: Date;
+    },
+    smsAvailable: boolean,
+  ) {
     return {
       id: setting.id,
       shopId: setting.shopId,
@@ -179,6 +199,10 @@ export class CodSettingsService {
             (name): name is string => typeof name === 'string',
           )
         : [],
+      availableChannels: [
+        VerificationChannel.EMAIL,
+        ...(smsAvailable ? [VerificationChannel.SMS] : []),
+      ],
       createdAt: setting.createdAt,
       updatedAt: setting.updatedAt,
     };

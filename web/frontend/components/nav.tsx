@@ -16,6 +16,7 @@ export default function Nav() {
       <Link to={dashboardPath('/billing')}>Billing</Link>
       <Link to={dashboardPath('/settings')}>Settings</Link>
       <Link to={dashboardPath('/templates')}>Message templates</Link>
+      <Link to={dashboardPath('/sms-providers')}>SMS connections</Link>
       <Link to={dashboardPath('/blacklist')}>Blacklist</Link>
       <Link to={dashboardPath('/analytics')}>Analytics</Link>
     </NavMenu>

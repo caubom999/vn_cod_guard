@@ -28,6 +28,11 @@ const pageDetails: Record<string, { title: string; subtitle: string }> = {
     subtitle:
       'Edit customer messages, choose a design, and preview outgoing email.',
   },
+  '/sms-providers': {
+    title: 'SMS connections',
+    subtitle:
+      'Connect your provider and control how SMS confirmations are sent.',
+  },
   '/blacklist': {
     title: 'Blacklist',
     subtitle: 'Monitor customer details associated with risky COD orders.',

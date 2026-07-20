@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   DEFAULT_MESSAGE_LOCALE,
   DEFAULT_VERIFICATION_EMAIL_TEMPLATE,
+  DEFAULT_VERIFICATION_SMS_TEMPLATE,
 } from './messaging.constants';
 
 @Injectable()
@@ -47,6 +48,43 @@ export class MessagingRepository {
       create: {
         shopId,
         ...DEFAULT_VERIFICATION_EMAIL_TEMPLATE,
+      },
+    });
+  }
+
+  getOrCreateVerificationSmsTemplate(shopId: number) {
+    return this.prisma.codMessageTemplate.upsert({
+      where: {
+        shopId_type_channel_locale: {
+          shopId,
+          type: MessageTemplateType.VERIFICATION,
+          channel: VerificationChannel.SMS,
+          locale: DEFAULT_MESSAGE_LOCALE,
+        },
+      },
+      update: {},
+      create: {
+        shopId,
+        ...DEFAULT_VERIFICATION_SMS_TEMPLATE,
+      },
+    });
+  }
+
+  getOrCreateSmsIntegration(shopId: number) {
+    return this.prisma.codChannelIntegration.upsert({
+      where: {
+        shopId_provider: {
+          shopId,
+          provider: ChannelIntegrationProvider.SMS,
+        },
+      },
+      update: { enabled: true },
+      create: {
+        shopId,
+        provider: ChannelIntegrationProvider.SMS,
+        enabled: true,
+        senderName: 'COD Guard',
+        configJson: { mode: 'dev-log' },
       },
     });
   }

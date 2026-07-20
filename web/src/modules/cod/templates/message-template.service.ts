@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { VerificationChannel } from '@prisma/client';
 import { MessagingRepository } from '../messaging/messaging.repository';
 import { MessageTemplateRepository } from './message-template.repository';
 
@@ -24,6 +25,7 @@ export class MessageTemplateService {
 
   async list(shopId: number) {
     await this.messaging.getOrCreateVerificationEmailTemplate(shopId);
+    await this.messaging.getOrCreateVerificationSmsTemplate(shopId);
     const templates = await this.templates.list(shopId);
 
     return Promise.all(
@@ -43,7 +45,13 @@ export class MessageTemplateService {
     );
   }
 
-  update(id: number, shopId: number, dto: UpdateMessageTemplateDto) {
+  async update(id: number, shopId: number, dto: UpdateMessageTemplateDto) {
+    const existing = await this.templates.findById(id, shopId);
+
+    if (!existing) {
+      throw new BadRequestException('Message template not found');
+    }
+
     const data: UpdateMessageTemplateDto = {};
 
     if (dto.subject !== undefined) {
@@ -54,6 +62,15 @@ export class MessageTemplateService {
     if (dto.body !== undefined) {
       if (typeof dto.body !== 'string' || !dto.body.trim()) {
         throw new BadRequestException('Template body is required');
+      }
+
+      if (
+        existing.channel === VerificationChannel.SMS &&
+        dto.body.length > 320
+      ) {
+        throw new BadRequestException(
+          'Template body must be 320 characters or fewer',
+        );
       }
 
       data.body = this.removeLegacyVerificationUrlLines(dto.body);

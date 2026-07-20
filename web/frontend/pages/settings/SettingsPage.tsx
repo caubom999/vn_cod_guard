@@ -81,8 +81,7 @@ function SettingsScreen() {
       form.codPaymentNames[0] &&
       form.codPaymentNames[0] !== paymentRule.data.paymentMethodName,
   );
-  const isDirty =
-    settingsDirty || shippingMethodDirty || paymentMethodDirty;
+  const isDirty = settingsDirty || shippingMethodDirty || paymentMethodDirty;
 
   const validation = useMemo(() => validateSettingsForm(form), [form]);
   const shippingMethodError = shippingMethodName.trim()
@@ -217,6 +216,7 @@ function SettingsScreen() {
 
           <VerificationWorkflowSection
             form={form}
+            availableChannels={settings?.availableChannels || ['EMAIL']}
             validation={validation}
             setField={setField}
             setNumberField={setNumberField}
@@ -237,10 +237,7 @@ function SettingsScreen() {
             >
               Save
             </button>
-            <button
-              disabled={isSaving}
-              onClick={handleDiscard}
-            >
+            <button disabled={isSaving} onClick={handleDiscard}>
               Discard
             </button>
           </SaveBar>

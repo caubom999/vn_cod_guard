@@ -16,9 +16,13 @@ export type CodSettings = {
   expiredTag: string;
   riskTag: string;
   codPaymentNames: string[];
+  availableChannels: Array<'EMAIL' | 'SMS' | 'WHATSAPP'>;
 };
 
-export type UpdateCodSettings = Omit<CodSettings, 'id' | 'shopId'>;
+export type UpdateCodSettings = Omit<
+  CodSettings,
+  'id' | 'shopId' | 'availableChannels'
+>;
 
 export function useCodSettings() {
   const api = useApi();

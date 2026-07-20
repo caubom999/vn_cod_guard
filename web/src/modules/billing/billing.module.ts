@@ -6,11 +6,12 @@ import { ShopifyModule } from '../shopify/shopify.module';
 import { BillingController } from './billing.controller';
 import { BillingRepository } from './billing.repository';
 import { BillingService } from './billing.service';
+import { AppEventsBillingService } from './app-events-billing.service';
 
 @Module({
   imports: [ConfigModule, PrismaModule, ShopifyModule, ShopModule],
   controllers: [BillingController],
-  providers: [BillingService, BillingRepository],
-  exports: [BillingService, BillingRepository],
+  providers: [BillingService, BillingRepository, AppEventsBillingService],
+  exports: [BillingService, BillingRepository, AppEventsBillingService],
 })
 export class BillingModule {}

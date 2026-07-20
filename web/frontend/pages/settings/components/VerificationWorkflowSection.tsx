@@ -11,19 +11,15 @@ import type { UpdateCodSettings } from '../../../hook/cod-settings';
 import type { SettingsValidation } from '../settings-form';
 import { SettingsSection } from './SettingsSection';
 
-const channelOptions = [
-  { label: 'Email', value: 'EMAIL' },
-  { label: 'WhatsApp — setup required', value: 'WHATSAPP', disabled: true },
-  { label: 'SMS — setup required', value: 'SMS', disabled: true },
-];
-
 export function VerificationWorkflowSection({
   form,
+  availableChannels,
   validation,
   setField,
   setNumberField,
 }: {
   form: UpdateCodSettings;
+  availableChannels: Array<'EMAIL' | 'SMS' | 'WHATSAPP'>;
   validation: SettingsValidation;
   setField: <K extends keyof UpdateCodSettings>(
     key: K,
@@ -31,6 +27,16 @@ export function VerificationWorkflowSection({
   ) => void;
   setNumberField: (key: keyof UpdateCodSettings, value: string) => void;
 }) {
+  const channelOptions = [
+    { label: 'Email', value: 'EMAIL' },
+    {
+      label: availableChannels.includes('SMS') ? 'SMS' : 'SMS — setup required',
+      value: 'SMS',
+      disabled: !availableChannels.includes('SMS'),
+    },
+    { label: 'WhatsApp — setup required', value: 'WHATSAPP', disabled: true },
+  ];
+
   return (
     <SettingsSection
       title="Verification workflow"
@@ -48,7 +54,7 @@ export function VerificationWorkflowSection({
             label="Default verification channel"
             options={channelOptions}
             value={form.defaultChannel}
-            helpText="Email is available now. Connect a provider before enabling WhatsApp or SMS."
+            helpText="SMS is billed per segment after the provider accepts the message."
             onChange={(value) =>
               setField(
                 'defaultChannel',

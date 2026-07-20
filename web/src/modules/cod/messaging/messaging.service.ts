@@ -5,12 +5,15 @@ import {
   VerificationChannel,
 } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
+import { AppEventsBillingService } from '../../billing/app-events-billing.service';
 import { MessagingRepository } from './messaging.repository';
 import { MessageTemplateRenderer } from './message-template.renderer';
 import { EmailProvider } from './providers/email.provider';
+import { SmsProvider } from './providers/sms.provider';
 import { renderTemplate1 } from '../verification/templates/template-1';
 import { renderTemplate2 } from '../verification/templates/template-2';
 import { renderTemplate3 } from '../verification/templates/template-3';
+import { SmsIntegrationService } from '../integrations/sms-integration.service';
 
 type SendVerificationMessageInput = {
   verificationSessionId: number;
@@ -25,6 +28,9 @@ export class MessagingService {
     private readonly messages: MessagingRepository,
     private readonly renderer: MessageTemplateRenderer,
     private readonly emailProvider: EmailProvider,
+    private readonly smsProvider: SmsProvider,
+    private readonly smsIntegrations: SmsIntegrationService,
+    private readonly appEventsBilling: AppEventsBillingService,
     private readonly config: ConfigService,
   ) {}
 
@@ -37,20 +43,176 @@ export class MessagingService {
       throw new Error('Verification session not found for messaging');
     }
 
-    if (session.channel !== VerificationChannel.EMAIL) {
-      await this.messages.createEvent({
-        codOrderId: session.codOrderId,
-        verificationSessionId: session.id,
-        type: 'MESSAGE_CHANNEL_NOT_IMPLEMENTED',
-        message:
-          session.channel + ' messaging provider is not implemented yet.',
-        metadataJson: { channel: session.channel } as Prisma.InputJsonValue,
-      });
-
-      return null;
+    if (session.channel === VerificationChannel.EMAIL) {
+      return this.sendVerificationEmail(session, input.token);
     }
 
-    return this.sendVerificationEmail(session, input.token);
+    if (session.channel === VerificationChannel.SMS) {
+      return this.sendVerificationSms(session, input.token);
+    }
+
+    await this.messages.createEvent({
+      codOrderId: session.codOrderId,
+      verificationSessionId: session.id,
+      type: 'MESSAGE_CHANNEL_NOT_IMPLEMENTED',
+      message: session.channel + ' messaging provider is not implemented yet.',
+      metadataJson: { channel: session.channel } as Prisma.InputJsonValue,
+    });
+
+    return null;
+  }
+
+  private async sendVerificationSms(
+    session: NonNullable<
+      Awaited<ReturnType<MessagingRepository['findSessionForMessage']>>
+    >,
+    token: string,
+  ) {
+    const order = session.codOrder;
+    const shop = order.shop;
+    const template = await this.messages.getOrCreateVerificationSmsTemplate(
+      shop.id,
+    );
+    const integration = await this.smsIntegrations.getRuntimeConfiguration(
+      shop.id,
+    );
+    const verificationUrl = this.buildVerificationUrl(token);
+    const redactedVerificationUrl = this.redactVerificationUrl(verificationUrl);
+    const body = [
+      this.renderer.render(template.body, {
+        shopName: shop.name || shop.domain,
+        customerName: order.customerName || 'ban',
+        orderName: order.orderName || order.orderNumber || '#' + order.id,
+        amount: order.totalAmount?.toString() || '',
+        currency: order.currency || '',
+        expiresAt: session.expiresAt.toLocaleString('vi-VN', {
+          timeZone: 'Asia/Ho_Chi_Minh',
+        }),
+      }),
+      verificationUrl,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const recipient = order.normalizedPhone || order.customerPhone || '';
+    const delivery = await this.messages.createDelivery({
+      verificationSessionId: session.id,
+      channel: VerificationChannel.SMS,
+      provider: this.smsProvider.getProviderName(integration.integrationConfig),
+      recipient: recipient || 'missing-phone',
+      body: this.redactRawToken(body, verificationUrl, redactedVerificationUrl),
+      status: MessageDeliveryStatus.QUEUED,
+    });
+
+    try {
+      if (!template.enabled) {
+        throw new Error('Verification SMS template is disabled');
+      }
+
+      if (!integration.enabled || !integration.configured) {
+        throw new Error('SMS channel integration is disabled');
+      }
+
+      const result = await this.smsProvider.send({
+        to: recipient,
+        body,
+        integrationConfig: integration.integrationConfig,
+      });
+      const sentAt = new Date();
+      const updatedDelivery = await this.messages.markDeliverySent(
+        delivery.id,
+        {
+          providerMessageId: result.providerMessageId,
+        },
+      );
+
+      await this.messages.markSessionSent(session.id);
+
+      try {
+        const billing =
+          result.billingMode === 'merchant-direct'
+            ? { reported: false, reason: 'merchant-direct' }
+            : await this.appEventsBilling.reportSmsSent({
+                shopDomain: shop.domain,
+                deliveryId: delivery.id,
+                segments: result.segments,
+                sentAt,
+              });
+
+        await this.messages.createEvent({
+          codOrderId: order.id,
+          verificationSessionId: session.id,
+          type: billing.reported
+            ? 'SMS_USAGE_BILLING_SUBMITTED'
+            : 'SMS_USAGE_BILLING_SKIPPED',
+          message: billing.reported
+            ? 'SMS usage was submitted to Shopify App Events.'
+            : result.billingMode === 'merchant-direct'
+              ? 'Merchant pays the connected SMS provider directly.'
+              : 'SMS usage billing is disabled.',
+          metadataJson: {
+            deliveryId: delivery.id,
+            segments: result.segments,
+          } as Prisma.InputJsonValue,
+        });
+      } catch (billingError) {
+        const billingMessage =
+          billingError instanceof Error
+            ? billingError.message
+            : String(billingError);
+
+        this.logger.error(
+          `SMS sent but usage billing failed for delivery ${delivery.id}: ${billingMessage}`,
+        );
+        await this.messages.createEvent({
+          codOrderId: order.id,
+          verificationSessionId: session.id,
+          type: 'SMS_USAGE_BILLING_FAILED',
+          message: billingMessage,
+          metadataJson: {
+            deliveryId: delivery.id,
+            segments: result.segments,
+          } as Prisma.InputJsonValue,
+        });
+      }
+
+      await this.messages.createEvent({
+        codOrderId: order.id,
+        verificationSessionId: session.id,
+        type: 'VERIFICATION_MESSAGE_SENT',
+        message: 'Verification SMS was accepted by the configured provider.',
+        metadataJson: {
+          deliveryId: updatedDelivery.id,
+          provider: updatedDelivery.provider,
+          segments: result.segments,
+          verificationUrl: redactedVerificationUrl,
+        } as Prisma.InputJsonValue,
+      });
+
+      return updatedDelivery;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      this.logger.warn('Verification SMS delivery failed: ' + message);
+      const failedDelivery = await this.messages.markDeliveryFailed(
+        delivery.id,
+        message,
+      );
+
+      await this.messages.createEvent({
+        codOrderId: order.id,
+        verificationSessionId: session.id,
+        type: 'VERIFICATION_MESSAGE_FAILED',
+        message,
+        metadataJson: {
+          deliveryId: failedDelivery.id,
+          provider: failedDelivery.provider,
+        } as Prisma.InputJsonValue,
+      });
+
+      return failedDelivery;
+    }
   }
 
   private async sendVerificationEmail(

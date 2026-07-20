@@ -9,6 +9,7 @@ import OrdersPage from './pages/orders/OrdersPage';
 import OverviewPage from './pages/overview/OverviewPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import TemplatesPage from './pages/templates/TemplatesPage';
+import SmsProvidersPage from './pages/sms/SmsProvidersPage';
 import ErrorPage from './pages/Error';
 import ExitIframe from './pages/ExitIframe';
 import NotFound from './pages/NotFound';
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
           { path: 'billing', element: <BillingPage /> },
           { path: 'settings', element: <SettingsPage /> },
           { path: 'templates', element: <TemplatesPage /> },
+          { path: 'sms-providers', element: <SmsProvidersPage /> },
           { path: 'blacklist', element: <BlacklistPage /> },
           { path: 'analytics', element: <AnalyticsPage /> },
         ],

@@ -13,6 +13,12 @@ export class MessageTemplateRepository {
     });
   }
 
+  findById(id: number, shopId: number) {
+    return this.prisma.codMessageTemplate.findFirst({
+      where: { id, shopId },
+    });
+  }
+
   update(
     id: number,
     shopId: number,
