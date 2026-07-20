@@ -13,10 +13,8 @@ import { SettingsSection } from './SettingsSection';
 
 const channelOptions = [
   { label: 'Email', value: 'EMAIL' },
-  { label: 'SMS', value: 'SMS' },
-  { label: 'Zalo', value: 'ZALO' },
-  { label: 'WhatsApp', value: 'WHATSAPP' },
-  { label: 'Manual', value: 'MANUAL' },
+  { label: 'WhatsApp — setup required', value: 'WHATSAPP', disabled: true },
+  { label: 'SMS — setup required', value: 'SMS', disabled: true },
 ];
 
 export function VerificationWorkflowSection({
@@ -50,6 +48,7 @@ export function VerificationWorkflowSection({
             label="Default verification channel"
             options={channelOptions}
             value={form.defaultChannel}
+            helpText="Email is available now. Connect a provider before enabling WhatsApp or SMS."
             onChange={(value) =>
               setField(
                 'defaultChannel',

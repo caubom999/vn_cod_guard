@@ -5,7 +5,7 @@ export type CodSettings = {
   id: number;
   shopId: number;
   enabled: boolean;
-  defaultChannel: 'EMAIL' | 'SMS' | 'ZALO' | 'WHATSAPP' | 'MANUAL';
+  defaultChannel: 'EMAIL' | 'SMS' | 'WHATSAPP';
   confirmationDeadlineMinutes: number;
   reminderDelayMinutes: number;
   maxReminders: number;

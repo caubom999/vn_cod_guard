@@ -2,6 +2,12 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { VerificationChannel } from '@prisma/client';
 import { CodSettingsRepository } from './cod-settings.repository';
 
+const CUSTOMER_VERIFICATION_CHANNELS = new Set<VerificationChannel>([
+  VerificationChannel.EMAIL,
+  VerificationChannel.SMS,
+  VerificationChannel.WHATSAPP,
+]);
+
 export type UpdateCodSettingsDto = {
   enabled?: boolean;
   defaultChannel?: VerificationChannel;
@@ -39,8 +45,10 @@ export class CodSettingsService {
     }
 
     if (dto.defaultChannel !== undefined) {
-      if (!Object.values(VerificationChannel).includes(dto.defaultChannel)) {
-        throw new BadRequestException('Invalid default channel');
+      if (!CUSTOMER_VERIFICATION_CHANNELS.has(dto.defaultChannel)) {
+        throw new BadRequestException(
+          'Default channel must be Email, WhatsApp, or SMS',
+        );
       }
 
       data.defaultChannel = dto.defaultChannel;
@@ -154,7 +162,9 @@ export class CodSettingsService {
       id: setting.id,
       shopId: setting.shopId,
       enabled: setting.enabled,
-      defaultChannel: setting.defaultChannel,
+      defaultChannel: CUSTOMER_VERIFICATION_CHANNELS.has(setting.defaultChannel)
+        ? setting.defaultChannel
+        : VerificationChannel.EMAIL,
       confirmationDeadlineMinutes: setting.confirmationDeadlineMinutes,
       reminderDelayMinutes: setting.reminderDelayMinutes,
       maxReminders: setting.maxReminders,
