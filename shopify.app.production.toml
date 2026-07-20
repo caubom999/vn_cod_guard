@@ -1,0 +1,34 @@
+# Production configuration deployed by GitLab CI with --config production.
+
+client_id = "6e41fd433a097099c22bf697ca13e998"
+name = "Vietnam COD Guard"
+application_url = "https://vtjr.online"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = false
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  uri = "/api/webhooks/privacy"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/api/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app_subscriptions/update" ]
+  uri = "/api/webhooks/app/subscriptions-update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "orders/create" ]
+  uri = "/api/webhooks/orders-create"
+
+[access_scopes]
+scopes = "read_delivery_customizations,read_order_edits,read_orders,read_payment_customizations,read_products,read_shipping,read_translations,write_delivery_customizations,write_order_edits,write_orders,write_payment_customizations"
+
+[auth]
+redirect_urls = [ "https://vtjr.online/api/auth/callback" ]

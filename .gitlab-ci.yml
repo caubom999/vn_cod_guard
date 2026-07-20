@@ -1,120 +1,155 @@
-image: docker:latest
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - when: never
 
-services:
-  - name: docker:dind
-    command: ["--tls=false"]
+stages:
+  - test
+  - build
+  - deploy
+  - release
 
 variables:
   DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""
+  DOCKER_TLS_CERTDIR: ''
   DOCKER_DRIVER: overlay2
+  DOCKER_BUILDKIT: '1'
+  NPM_CONFIG_CACHE: '$CI_PROJECT_DIR/.npm'
+  PRODUCTION_URL: 'https://vtjr.online'
+  VITE_CDN_URL: '/'
+  VITE_HOST: 'https://vtjr.online'
+  SHOPIFY_APP_PROXY: '/apps/vn-cod-guard'
 
-stages:
-  - build
-  # - deploy
+cache:
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - .npm/
 
-.build:
-  stage: build
+test:
+  stage: test
+  image: node:20-bookworm-slim
   before_script:
-    - echo $CI_REGISTRY_PASSWORD | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
-
-build_development:
-  extends: .build
-  environment:
-    name: development
-    url: https://flashvt.store
+    - npm ci --prefer-offline --no-audit
   script:
-    - echo "Build development"
-    - docker pull $CI_REGISTRY_IMAGE:develop || true
-    - docker build --no-cache -t $CI_REGISTRY_IMAGE:develop -f Dockerfile --build-arg SHOPIFY_API_KEY="$SHOPIFY_API_KEY" --build-arg VITE_CDN_URL="$VITE_CDN_URL" --build-arg VITE_HOST="$VITE_HOST" --build-arg VITE_EMBEDDED_ID="$VITE_EMBEDDED_ID" --build-arg SHOPIFY_APP_PROXY="$SHOPIFY_APP_PROXY" .
-    - docker push $CI_REGISTRY_IMAGE:develop
-  rules:
-    - if: $CI_COMMIT_BRANCH == "develop"
+    - npm test --workspace hide-cod-delivery -- --run
+    - npm test --workspace hide-cod-payment -- --run
+    - npm test --workspace vn-cod-guard-web -- --runInBand --passWithNoTests
+    - npm run build --workspace vn-cod-guard-web
+    - npm run build --workspace vn-cod-guard-frontend
 
-build_merge_request:
-  extends: .build
+build_image:
+  stage: build
+  image: docker:27-cli
+  services:
+    - name: docker:27-dind
+      command: ['--tls=false']
+  needs:
+    - test
+  before_script:
+    - test -n "$SHOPIFY_API_KEY"
+    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
   script:
-    - echo "Build merge request"
-    - docker build --no-cache -t $CI_REGISTRY_IMAGE:mr-$CI_MERGE_REQUEST_IID -f Dockerfile --build-arg SHOPIFY_API_KEY="$SHOPIFY_API_KEY" --build-arg VITE_CDN_URL="$VITE_CDN_URL" --build-arg VITE_HOST="$VITE_HOST" --build-arg VITE_EMBEDDED_ID="$VITE_EMBEDDED_ID" --build-arg SHOPIFY_APP_PROXY="$SHOPIFY_APP_PROXY" .
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        CHANNEL_TAG="latest"
+      else
+        CHANNEL_TAG="develop"
+      fi
+      docker pull "$CI_REGISTRY_IMAGE:$CHANNEL_TAG" || true
+      docker build \
+        --pull \
+        --cache-from "$CI_REGISTRY_IMAGE:$CHANNEL_TAG" \
+        --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" \
+        --tag "$CI_REGISTRY_IMAGE:$CHANNEL_TAG" \
+        --build-arg MODE=production \
+        --build-arg SHOPIFY_API_KEY="$SHOPIFY_API_KEY" \
+        --build-arg VITE_CDN_URL="$VITE_CDN_URL" \
+        --build-arg VITE_HOST="$VITE_HOST" \
+        --build-arg SHOPIFY_APP_PROXY="$SHOPIFY_APP_PROXY" \
+        .
+      docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+      docker push "$CI_REGISTRY_IMAGE:$CHANNEL_TAG"
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
 
-build_production:
-  extends: .build
+.production_ssh:
+  image: alpine:3.20
+  before_script:
+    - apk add --no-cache openssh-client
+    - test -n "$DEPLOY_HOST"
+    - test -n "$DEPLOY_USER"
+    - test -n "$DEPLOY_PATH"
+    - test -f "$SSH_PRIVATE_KEY"
+    - test -f "$SSH_KNOWN_HOSTS"
+    - eval "$(ssh-agent -s)"
+    - chmod 400 "$SSH_PRIVATE_KEY"
+    - ssh-add "$SSH_PRIVATE_KEY"
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+
+deploy_production:
+  extends: .production_ssh
+  stage: deploy
+  needs:
+    - build_image
+  resource_group: production
   environment:
     name: production
-    url: https://flashvt.store
+    url: https://vtjr.online
   script:
-    - echo "Build production"
-    - docker pull $CI_REGISTRY_IMAGE:latest || true
-    - docker build --no-cache -t $CI_REGISTRY_IMAGE:latest -f Dockerfile --build-arg SHOPIFY_API_KEY="$SHOPIFY_API_KEY" --build-arg VITE_CDN_URL="$VITE_CDN_URL" --build-arg VITE_HOST="$VITE_HOST" --build-arg VITE_EMBEDDED_ID="$VITE_EMBEDDED_ID" --build-arg SHOPIFY_APP_PROXY="$SHOPIFY_APP_PROXY" .
-    - docker push $CI_REGISTRY_IMAGE:latest
+    - ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
+    - scp docker-compose.production.yaml "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/docker-compose.production.yaml"
+    - printf '%s' "$CI_REGISTRY_PASSWORD" | ssh "$DEPLOY_USER@$DEPLOY_HOST" "docker login '$CI_REGISTRY' -u '$CI_REGISTRY_USER' --password-stdin"
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_HOST" "
+        set -eu
+        cd '$DEPLOY_PATH'
+        test -f .env.production
+        export APP_IMAGE='$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA'
+        export COMPOSE_FILE=docker-compose.production.yaml
+        docker compose --env-file .env.production pull app
+        docker compose --env-file .env.production up -d mysql redis
+        docker compose --env-file .env.production run --rm app npx prisma migrate deploy
+        docker compose --env-file .env.production up -d --remove-orphans
+        attempt=0
+        until curl --fail --silent --show-error http://127.0.0.1:8080/health >/dev/null; do
+          attempt=\$((attempt + 1))
+          if [ \"\$attempt\" -ge 30 ]; then
+            docker compose --env-file .env.production logs --tail=150 app
+            exit 1
+          fi
+          sleep 2
+        done
+        docker image prune -f
+      "
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+  allow_failure: false
 
-# Deploy is disabled until a live server is available.
-# Uncomment the deploy stage above and the jobs below after adding the server
-# variables in GitLab CI/CD settings: SSH_PRIVATE_KEY, SERVER_USERNAME,
-# SERVER_IP_ADDRESS, and PROJECT_DIR.
-#
-# deploy_development:
-#   stage: deploy
-#   variables:
-#     GIT_STRATEGY: none
-#   environment:
-#     name: development
-#     url: https://flashvt.store
-#   before_script:
-#     - apk update && apk add openssh-client bash
-#   script:
-#     - test -n "$SSH_PRIVATE_KEY" || (echo "SSH_PRIVATE_KEY is required" && exit 1)
-#     - test -n "$SERVER_USERNAME" || (echo "SERVER_USERNAME is required" && exit 1)
-#     - test -n "$SERVER_IP_ADDRESS" || (echo "SERVER_IP_ADDRESS is required" && exit 1)
-#     - test -n "$PROJECT_DIR" || (echo "PROJECT_DIR is required" && exit 1)
-#     - mkdir -p ~/.ssh
-#     - echo -e "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-#     - chmod 600 ~/.ssh/id_rsa
-#     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
-#     - >
-#       ssh -i ~/.ssh/id_rsa "$SERVER_USERNAME@$SERVER_IP_ADDRESS"
-#       "docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY};
-#       cd ${PROJECT_DIR};
-#       docker pull ${CI_REGISTRY_IMAGE}:develop;
-#       export APP_IMAGE=${CI_REGISTRY_IMAGE}:develop;
-#       docker compose down;
-#       docker compose up -d;
-#       docker exec vn-cod-guard-app npx prisma generate;
-#       docker image prune -f;"
-#   rules:
-#     - if: $CI_COMMIT_BRANCH == "develop"
-#
-# deploy_production:
-#   stage: deploy
-#   variables:
-#     GIT_STRATEGY: none
-#   environment:
-#     name: production
-#     url: https://flashvt.store
-#   before_script:
-#     - apk update && apk add openssh-client bash
-#   script:
-#     - test -n "$SSH_PRIVATE_KEY" || (echo "SSH_PRIVATE_KEY is required" && exit 1)
-#     - test -n "$SERVER_USERNAME" || (echo "SERVER_USERNAME is required" && exit 1)
-#     - test -n "$SERVER_IP_ADDRESS" || (echo "SERVER_IP_ADDRESS is required" && exit 1)
-#     - test -n "$PROJECT_DIR" || (echo "PROJECT_DIR is required" && exit 1)
-#     - mkdir -p ~/.ssh
-#     - echo -e "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-#     - chmod 600 ~/.ssh/id_rsa
-#     - echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config
-#     - >
-#       ssh -i ~/.ssh/id_rsa "$SERVER_USERNAME@$SERVER_IP_ADDRESS"
-#       "docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY};
-#       cd ${PROJECT_DIR};
-#       docker pull ${CI_REGISTRY_IMAGE}:latest;
-#       export APP_IMAGE=${CI_REGISTRY_IMAGE}:latest;
-#       docker compose down;
-#       docker compose up -d;
-#       docker exec vn-cod-guard-app npx prisma generate;
-#       docker image prune -f;"
-#   rules:
-#     - if: $CI_COMMIT_BRANCH == "main"
+release_shopify:
+  stage: release
+  image: node:20-bookworm-slim
+  needs:
+    - deploy_production
+  resource_group: shopify-production
+  before_script:
+    - test -n "$SHOPIFY_APP_AUTOMATION_TOKEN"
+    - npm ci --prefer-offline --no-audit
+    - npm install --global @shopify/cli@latest
+  script:
+    - shopify app deploy --config production --allow-updates --source-control-url "$CI_PROJECT_URL/-/commit/$CI_COMMIT_SHA"
+  environment:
+    name: shopify-production
+    url: https://dev.shopify.com/dashboard
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+  allow_failure: false
