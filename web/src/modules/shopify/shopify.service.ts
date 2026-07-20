@@ -1,10 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiVersion, Session, Shopify, shopifyApi } from '@shopify/shopify-api';
+import {
+  ApiVersion,
+  HttpResponseError,
+  Session,
+  Shopify,
+  shopifyApi,
+} from '@shopify/shopify-api';
 import { ShopifySessionRepository } from './shopify.repository';
 
 @Injectable()
 export class ShopifyService {
+  private readonly logger = new Logger(ShopifyService.name);
   readonly shopify: Shopify;
   readonly hostName: string;
 
@@ -56,15 +63,52 @@ export class ShopifyService {
     const session = await this.loadOfflineSession(shop);
 
     if (!session) {
-      throw new Error(`Offline session not found for ${shop}`);
+      throw new UnauthorizedException(
+        'Shopify authorization is missing. Reopen the app to reconnect.',
+      );
     }
 
     const client = new this.shopify.clients.Graphql({ session });
 
-    return client.request(query, { variables });
+    try {
+      return await client.request(query, { variables });
+    } catch (error) {
+      if (!this.isUnauthorizedResponse(error)) {
+        throw error;
+      }
+
+      await this.sessions.deleteSessionsByShop(shop);
+      this.logger.warn(
+        `Removed invalid Shopify sessions for ${shop} after Admin API returned 401`,
+      );
+      throw new UnauthorizedException(
+        'Shopify authorization expired. Reopen the app to reconnect.',
+      );
+    }
   }
 
   async decodeSessionToken(token: string) {
     return (this.shopify.session as any).decodeSessionToken(token);
+  }
+
+  private isUnauthorizedResponse(error: unknown) {
+    if (error instanceof HttpResponseError) {
+      return error.response.code === 401;
+    }
+
+    if (!error || typeof error !== 'object') {
+      return false;
+    }
+
+    const candidate = error as {
+      networkStatusCode?: number;
+      response?: { code?: number; status?: number };
+    };
+
+    return (
+      candidate.networkStatusCode === 401 ||
+      candidate.response?.code === 401 ||
+      candidate.response?.status === 401
+    );
   }
 }

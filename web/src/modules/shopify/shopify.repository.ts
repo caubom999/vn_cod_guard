@@ -107,6 +107,19 @@ export class ShopifySessionRepository implements OnModuleDestroy {
     }
   }
 
+  async deleteSessionsByShop(shop: string) {
+    const { deletedRedisSessions } = await this.deleteRedisSessionsByShop(shop);
+    const { count: deletedPersistedSessions } =
+      await this.prisma.shopifySession.deleteMany({
+        where: { shop },
+      });
+
+    return {
+      deletedRedisSessions,
+      deletedPersistedSessions,
+    };
+  }
+
   private createRedisStorage() {
     if (this.getSessionStorageMode() !== 'redis') {
       return null;

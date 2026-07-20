@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CodPaymentRule, Prisma, Shop } from '@prisma/client';
 import {
   COD_PAYMENT_CUSTOMIZATION,
@@ -147,6 +152,10 @@ export class CodPaymentRuleService {
 
       return { methods };
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       const message =
         error instanceof Error ? error.message : 'Unknown Shopify error';
 
@@ -220,6 +229,10 @@ export class CodPaymentRuleService {
           })),
       };
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       const message =
         error instanceof Error ? error.message : 'Unknown Shopify error';
 
@@ -295,6 +308,10 @@ export class CodPaymentRuleService {
           })),
       };
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       const message =
         error instanceof Error ? error.message : 'Unknown Shopify error';
 
@@ -609,6 +626,10 @@ export class CodPaymentRuleService {
         shopifyMetafieldId,
       };
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       const message =
         error instanceof Error ? error.message : 'Unknown Shopify error';
 

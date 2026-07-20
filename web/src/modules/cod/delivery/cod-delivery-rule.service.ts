@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CodDeliveryRule, Prisma, Shop } from '@prisma/client';
 import {
   COD_DELIVERY_CUSTOMIZATION,
@@ -152,6 +157,10 @@ export class CodDeliveryRuleService {
 
       return { methods };
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       const message =
         error instanceof Error ? error.message : 'Unknown Shopify error';
 
@@ -425,6 +434,10 @@ export class CodDeliveryRuleService {
         shopifyMetafieldId,
       };
     } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       const message =
         error instanceof Error ? error.message : 'Unknown Shopify error';
 

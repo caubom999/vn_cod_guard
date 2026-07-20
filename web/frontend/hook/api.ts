@@ -1,6 +1,8 @@
 import { useAppBridge } from '@shopify/app-bridge-react';
 import { useCallback } from 'react';
 
+let reauthorizationInProgress = false;
+
 declare global {
   interface Window {
     shopify?: {
@@ -47,7 +49,16 @@ export function useApi() {
 
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        throw new ApiError(body?.message || response.statusText, response.status);
+
+        if (response.status === 401 && !reauthorizationInProgress) {
+          reauthorizationInProgress = true;
+          window.location.reload();
+        }
+
+        throw new ApiError(
+          body?.message || response.statusText,
+          response.status,
+        );
       }
 
       return response.json() as Promise<T>;

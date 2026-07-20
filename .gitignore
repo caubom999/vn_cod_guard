@@ -37,3 +37,4 @@ web/database.sqlite
 
 .idea
 .docker/data
+shopify.app.cod-guard-fee-local.toml
