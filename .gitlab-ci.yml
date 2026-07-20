@@ -31,7 +31,7 @@ cache:
 
 test:
   stage: test
-  image: node:20-bookworm-slim
+  image: node:22-bookworm-slim
   before_script:
     - npm ci --prefer-offline --no-audit
   script:
@@ -136,16 +136,16 @@ deploy_production:
 
 release_shopify:
   stage: release
-  image: node:20-bookworm-slim
+  image: node:22-bookworm-slim
   needs:
     - deploy_production
   resource_group: shopify-production
   before_script:
     - test -n "$SHOPIFY_APP_AUTOMATION_TOKEN"
     - npm ci --prefer-offline --no-audit
-    - npm install --global @shopify/cli@latest
+    - npx --no-install shopify version
   script:
-    - shopify app deploy --config production --allow-updates --source-control-url "$CI_PROJECT_URL/-/commit/$CI_COMMIT_SHA"
+    - npx --no-install shopify app deploy --config production --allow-updates --source-control-url "$CI_PROJECT_URL/-/commit/$CI_COMMIT_SHA"
   environment:
     name: shopify-production
     url: https://dev.shopify.com/dashboard
