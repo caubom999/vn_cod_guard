@@ -1,34 +1,59 @@
-CREATE TABLE `shop_billing_subscriptions` (
-  `id` INTEGER NOT NULL AUTO_INCREMENT,
-  `shop_id` INTEGER NOT NULL,
-  `plan_key` ENUM('FREE', 'STARTER', 'GROWTH', 'PRO') NOT NULL DEFAULT 'FREE',
-  `status` ENUM('ACTIVE', 'PENDING', 'CANCELLED', 'DECLINED', 'EXPIRED', 'FROZEN') NOT NULL DEFAULT 'ACTIVE',
-  `shopify_subscription_gid` VARCHAR(128) NULL,
-  `confirmation_url` TEXT NULL,
-  `trial_ends_at` DATETIME(3) NULL,
-  `current_period_started_at` DATETIME(3) NULL,
-  `current_period_ends_at` DATETIME(3) NULL,
-  `cancelled_at` DATETIME(3) NULL,
-  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+-- Remove constraints and indexes that reference the legacy column names.
+ALTER TABLE `shop_billing_events`
+  DROP FOREIGN KEY `shop_billing_events_shop_id_fkey`;
 
-  UNIQUE INDEX `shop_billing_subscriptions_shop_id_key`(`shop_id`),
-  UNIQUE INDEX `shop_billing_subscriptions_shopify_subscription_gid_key`(`shopify_subscription_gid`),
-  INDEX `shop_billing_subscriptions_plan_key_status_idx`(`plan_key`, `status`),
-  PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE `shop_billing_subscriptions`
+  DROP FOREIGN KEY `shop_billing_subscriptions_shop_id_fkey`;
 
-CREATE TABLE `shop_billing_events` (
-  `id` INTEGER NOT NULL AUTO_INCREMENT,
-  `shop_id` INTEGER NOT NULL,
-  `type` ENUM('SUBSCRIPTION_CREATED', 'SUBSCRIPTION_ACTIVATED', 'SUBSCRIPTION_CANCELLED', 'PLAN_CHANGED', 'USAGE_LIMIT_REACHED', 'USAGE_LIMIT_WARNING', 'SYNCED_FROM_SHOPIFY') NOT NULL,
-  `message` TEXT NULL,
-  `metadata_json` JSON NULL,
-  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+DROP INDEX `shop_billing_events_shop_id_type_idx`
+  ON `shop_billing_events`;
 
-  INDEX `shop_billing_events_shop_id_type_idx`(`shop_id`, `type`),
-  PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+DROP INDEX `shop_billing_subscriptions_plan_key_status_idx`
+  ON `shop_billing_subscriptions`;
 
-ALTER TABLE `shop_billing_subscriptions` ADD CONSTRAINT `shop_billing_subscriptions_shop_id_fkey` FOREIGN KEY (`shop_id`) REFERENCES `shops`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE `shop_billing_events` ADD CONSTRAINT `shop_billing_events_shop_id_fkey` FOREIGN KEY (`shop_id`) REFERENCES `shops`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+DROP INDEX `shop_billing_subscriptions_shop_id_key`
+  ON `shop_billing_subscriptions`;
+
+DROP INDEX `shop_billing_subscriptions_shopify_subscription_gid_key`
+  ON `shop_billing_subscriptions`;
+
+-- Rename the legacy columns instead of dropping and recreating them so any
+-- existing billing data remains intact.
+ALTER TABLE `shop_billing_events`
+  CHANGE COLUMN `created_at` `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  CHANGE COLUMN `metadata_json` `metadataJson` JSON NULL,
+  CHANGE COLUMN `shop_id` `shopId` INTEGER NOT NULL;
+
+ALTER TABLE `shop_billing_subscriptions`
+  CHANGE COLUMN `cancelled_at` `cancelledAt` DATETIME(3) NULL,
+  CHANGE COLUMN `confirmation_url` `confirmationUrl` TEXT NULL,
+  CHANGE COLUMN `created_at` `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  CHANGE COLUMN `current_period_ends_at` `currentPeriodEndsAt` DATETIME(3) NULL,
+  CHANGE COLUMN `current_period_started_at` `currentPeriodStartedAt` DATETIME(3) NULL,
+  CHANGE COLUMN `plan_key` `planKey` ENUM('FREE', 'STARTER', 'GROWTH', 'PRO') NOT NULL DEFAULT 'FREE',
+  CHANGE COLUMN `shop_id` `shopId` INTEGER NOT NULL,
+  CHANGE COLUMN `shopify_subscription_gid` `shopifySubscriptionGid` VARCHAR(128) NULL,
+  CHANGE COLUMN `trial_ends_at` `trialEndsAt` DATETIME(3) NULL,
+  CHANGE COLUMN `updated_at` `updatedAt` DATETIME(3) NOT NULL;
+
+CREATE INDEX `shop_billing_events_shopId_type_idx`
+  ON `shop_billing_events`(`shopId`, `type`);
+
+CREATE UNIQUE INDEX `shop_billing_subscriptions_shopId_key`
+  ON `shop_billing_subscriptions`(`shopId`);
+
+CREATE UNIQUE INDEX `shop_billing_subscriptions_shopifySubscriptionGid_key`
+  ON `shop_billing_subscriptions`(`shopifySubscriptionGid`);
+
+CREATE INDEX `shop_billing_subscriptions_planKey_status_idx`
+  ON `shop_billing_subscriptions`(`planKey`, `status`);
+
+ALTER TABLE `shop_billing_subscriptions`
+  ADD CONSTRAINT `shop_billing_subscriptions_shopId_fkey`
+  FOREIGN KEY (`shopId`) REFERENCES `shops`(`id`)
+  ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE `shop_billing_events`
+  ADD CONSTRAINT `shop_billing_events_shopId_fkey`
+  FOREIGN KEY (`shopId`) REFERENCES `shops`(`id`)
+  ON DELETE CASCADE ON UPDATE CASCADE;
