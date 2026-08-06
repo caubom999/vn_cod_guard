@@ -4,7 +4,7 @@ import { IntegrationSecretService } from './integration-secret.service';
 import { SmsIntegrationRepository } from './sms-integration.repository';
 import { SmsProvider } from '../messaging/providers/sms.provider';
 
-type SmsProviderId = 'twilio';
+type SmsProviderId = 'twilio' | 'esms';
 
 export type UpdateSmsIntegrationDto = {
   provider?: SmsProviderId;
@@ -12,10 +12,18 @@ export type UpdateSmsIntegrationDto = {
   from?: string;
   accountSid?: string;
   authToken?: string;
+  apiKey?: string;
+  secretKey?: string;
+  brandname?: string;
+  sandbox?: boolean;
 };
 
 type StoredSmsConfig = {
   provider?: string;
+  twilioFrom?: string;
+  esmsBrandname?: string;
+  esmsSandbox?: boolean;
+  // Kept for records created before provider-specific sender fields existed.
   from?: string;
   billingMode?: 'platform' | 'merchant-direct';
 };
@@ -38,35 +46,54 @@ export class SmsIntegrationService {
     const currentSecrets = this.secrets.decrypt(
       integration.encryptedSecretJson,
     );
-    const provider: SmsProviderId = 'twilio';
+    const provider = this.readProvider(dto.provider || currentConfig.provider);
 
-    const from = dto.from?.trim() || currentConfig.from || '';
+    const from =
+      dto.from?.trim() || currentConfig.twilioFrom || currentConfig.from || '';
+    const brandname =
+      dto.brandname?.trim() || currentConfig.esmsBrandname || '';
+    const sandbox = dto.sandbox ?? currentConfig.esmsSandbox ?? true;
     const accountSid =
       dto.accountSid?.trim() || currentSecrets.accountSid || '';
     const authToken = dto.authToken?.trim() || currentSecrets.authToken || '';
+    const apiKey = dto.apiKey?.trim() || currentSecrets.apiKey || '';
+    const secretKey = dto.secretKey?.trim() || currentSecrets.secretKey || '';
     const enabled = dto.enabled ?? integration.enabled;
 
     if (enabled) {
-      if (!accountSid || !authToken || !from) {
-        throw new BadRequestException(
-          'Twilio Account SID, Auth Token, and sender number are required',
-        );
+      if (provider === 'twilio') {
+        if (!accountSid || !authToken || !from) {
+          throw new BadRequestException(
+            'Twilio Account SID, Auth Token, and sender number are required',
+          );
+        }
+        this.validateTwilioAccountSid(accountSid);
+        this.validateSender(from);
+      } else {
+        if (!apiKey || !secretKey || !brandname) {
+          throw new BadRequestException(
+            'eSMS API Key, Secret Key, and registered Brandname are required',
+          );
+        }
       }
-      this.validateTwilioAccountSid(accountSid);
-      this.validateSender(from);
     }
 
     const updated = await this.integrations.update(shopId, {
       enabled,
-      senderName: from || 'COD Guard',
+      senderName:
+        (provider === 'esms' ? brandname : from) || integration.senderName,
       configJson: {
         provider,
-        from,
+        twilioFrom: from,
+        esmsBrandname: brandname,
+        esmsSandbox: sandbox,
         billingMode: 'merchant-direct',
       } as Prisma.InputJsonValue,
       encryptedSecretJson: this.secrets.encrypt({
         accountSid,
         authToken,
+        apiKey,
+        secretKey,
       }) as Prisma.InputJsonValue,
     });
 
@@ -90,8 +117,10 @@ export class SmsIntegrationService {
       throw new BadRequestException('Enable and save the SMS connection first');
     }
 
-    await this.smsProvider.verifyConnection(runtime.integrationConfig);
-    return { ok: true, provider: runtime.provider };
+    const result = await this.smsProvider.verifyConnection(
+      runtime.integrationConfig,
+    );
+    return { ok: true, provider: runtime.provider, ...result };
   }
 
   async isAvailable(shopId: number) {
@@ -102,16 +131,38 @@ export class SmsIntegrationService {
   async getRuntimeConfiguration(shopId: number) {
     const integration = await this.integrations.getOrCreate(shopId);
     const config = this.readConfig(integration.configJson);
-    const provider: SmsProviderId = 'twilio';
+    const provider = this.readProvider(config.provider);
     const storedSecrets = this.secrets.decrypt(integration.encryptedSecretJson);
 
+    if (provider === 'esms') {
+      const configured = Boolean(
+        storedSecrets.apiKey && storedSecrets.secretKey && config.esmsBrandname,
+      );
+
+      return {
+        enabled: integration.enabled,
+        configured,
+        provider,
+        integrationConfig: {
+          provider,
+          apiKey: storedSecrets.apiKey,
+          secretKey: storedSecrets.secretKey,
+          brandname: config.esmsBrandname,
+          sandbox: config.esmsSandbox ?? true,
+          billingMode: 'merchant-direct' as const,
+        },
+      };
+    }
+
+    const from = config.twilioFrom || config.from;
     if (storedSecrets.accountSid && storedSecrets.authToken) {
       return {
         enabled: integration.enabled,
-        configured: Boolean(config.from),
+        configured: Boolean(from),
         provider,
         integrationConfig: {
-          from: config.from,
+          provider,
+          from,
           accountSid: storedSecrets.accountSid,
           authToken: storedSecrets.authToken,
           billingMode: 'merchant-direct' as const,
@@ -125,7 +176,8 @@ export class SmsIntegrationService {
       configured: environmentConfigured,
       provider,
       integrationConfig: {
-        from: config.from,
+        provider,
+        from,
         billingMode: 'platform' as const,
       },
     };
@@ -140,19 +192,33 @@ export class SmsIntegrationService {
   }) {
     const config = this.readConfig(integration.configJson);
     const storedSecrets = this.secrets.decrypt(integration.encryptedSecretJson);
-    const provider: SmsProviderId = 'twilio';
-    const configured = Boolean(
-      (storedSecrets.accountSid && storedSecrets.authToken && config.from) ||
-        this.isEnvironmentProviderConfigured(),
-    );
+    const provider = this.readProvider(config.provider);
+    const twilioFrom = config.twilioFrom || config.from || '';
+    const configured =
+      provider === 'esms'
+        ? Boolean(
+            storedSecrets.apiKey &&
+              storedSecrets.secretKey &&
+              config.esmsBrandname,
+          )
+        : Boolean(
+            (storedSecrets.accountSid &&
+              storedSecrets.authToken &&
+              twilioFrom) ||
+              this.isEnvironmentProviderConfigured(),
+          );
 
     return {
       provider,
       enabled: integration.enabled && configured,
       configured,
-      from: config.from || '',
+      from: twilioFrom,
+      brandname: config.esmsBrandname || '',
+      sandbox: config.esmsSandbox ?? true,
       hasAccountSid: Boolean(storedSecrets.accountSid),
       hasAuthToken: Boolean(storedSecrets.authToken),
+      hasApiKey: Boolean(storedSecrets.apiKey),
+      hasSecretKey: Boolean(storedSecrets.secretKey),
       billingOwner: 'merchant' as const,
       updatedAt: integration.updatedAt,
       providers: [
@@ -166,7 +232,8 @@ export class SmsIntegrationService {
           id: 'esms',
           name: 'eSMS Vietnam',
           description: 'Local sender-name and domestic routing support.',
-          availability: 'coming-soon',
+          availability: 'available',
+          badge: 'new',
         },
       ],
     };
@@ -177,6 +244,10 @@ export class SmsIntegrationService {
       return {};
     }
     return value as StoredSmsConfig;
+  }
+
+  private readProvider(value: unknown): SmsProviderId {
+    return value === 'esms' ? 'esms' : 'twilio';
   }
 
   private isEnvironmentProviderConfigured() {

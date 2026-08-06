@@ -38,7 +38,7 @@ export function useUpdateCodSettings() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (settings: UpdateCodSettings) =>
+    mutationFn: (settings: Partial<UpdateCodSettings>) =>
       api<CodSettings>('/api/cod/settings', {
         method: 'PUT',
         body: JSON.stringify(settings),

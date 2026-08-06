@@ -23,7 +23,7 @@ import {
   useUpdateSmsIntegration,
 } from '../../hook/sms-integration';
 
-type ProviderId = 'twilio';
+type ProviderId = 'twilio' | 'esms';
 
 export default function SmsProvidersPage() {
   const integration = useSmsIntegration();
@@ -35,12 +35,18 @@ export default function SmsProvidersPage() {
   const [from, setFrom] = useState('');
   const [accountSid, setAccountSid] = useState('');
   const [authToken, setAuthToken] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [secretKey, setSecretKey] = useState('');
+  const [brandname, setBrandname] = useState('');
+  const [sandbox, setSandbox] = useState(true);
 
   useEffect(() => {
     if (!integration.data) return;
     setProvider(integration.data.provider);
     setEnabled(integration.data.enabled);
     setFrom(integration.data.from);
+    setBrandname(integration.data.brandname);
+    setSandbox(integration.data.sandbox);
   }, [integration.data]);
 
   const dirty = useMemo(() => {
@@ -50,10 +56,25 @@ export default function SmsProvidersPage() {
       provider !== current.provider ||
       enabled !== current.enabled ||
       from !== current.from ||
+      brandname !== current.brandname ||
+      sandbox !== current.sandbox ||
       Boolean(accountSid) ||
-      Boolean(authToken)
+      Boolean(authToken) ||
+      Boolean(apiKey) ||
+      Boolean(secretKey)
     );
-  }, [accountSid, authToken, enabled, from, integration.data, provider]);
+  }, [
+    accountSid,
+    apiKey,
+    authToken,
+    brandname,
+    enabled,
+    from,
+    integration.data,
+    provider,
+    sandbox,
+    secretKey,
+  ]);
 
   const missingTwilioFields =
     provider === 'twilio' &&
@@ -61,6 +82,13 @@ export default function SmsProvidersPage() {
     (!from ||
       (!accountSid && !integration.data?.hasAccountSid) ||
       (!authToken && !integration.data?.hasAuthToken));
+  const missingEsmsFields =
+    provider === 'esms' &&
+    enabled &&
+    (!brandname ||
+      (!apiKey && !integration.data?.hasApiKey) ||
+      (!secretKey && !integration.data?.hasSecretKey));
+  const missingProviderFields = missingTwilioFields || missingEsmsFields;
   const error =
     integration.error || update.error || test.error || disconnect.error;
 
@@ -71,9 +99,15 @@ export default function SmsProvidersPage() {
       from,
       accountSid: accountSid || undefined,
       authToken: authToken || undefined,
+      apiKey: apiKey || undefined,
+      secretKey: secretKey || undefined,
+      brandname,
+      sandbox,
     });
     setAccountSid('');
     setAuthToken('');
+    setApiKey('');
+    setSecretKey('');
   };
 
   if (integration.isLoading) {
@@ -166,53 +200,106 @@ export default function SmsProvidersPage() {
                 key={option.id}
                 provider={option}
                 selected={provider === option.id}
-                onSelect={() => {
-                  if (option.id !== 'esms') setProvider(option.id);
-                }}
+                onSelect={() => setProvider(option.id)}
               />
             ))}
           </InlineGrid>
 
           <Divider />
 
-          <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">
-              Twilio connection
-            </Text>
-            <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+          {provider === 'twilio' ? (
+            <BlockStack gap="400">
+              <Text as="h2" variant="headingMd">
+                Twilio connection
+              </Text>
+              <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+                <TextField
+                  label="Account SID"
+                  value={accountSid}
+                  placeholder={
+                    integration.data?.hasAccountSid
+                      ? 'Saved securely — enter to replace'
+                      : 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+                  }
+                  onChange={setAccountSid}
+                  autoComplete="off"
+                />
+                <TextField
+                  label="Auth Token"
+                  type="password"
+                  value={authToken}
+                  placeholder={
+                    integration.data?.hasAuthToken
+                      ? 'Saved securely — enter to replace'
+                      : 'Enter Twilio auth token'
+                  }
+                  onChange={setAuthToken}
+                  autoComplete="new-password"
+                />
+              </InlineGrid>
               <TextField
-                label="Account SID"
-                value={accountSid}
-                placeholder={
-                  integration.data?.hasAccountSid
-                    ? 'Saved securely — enter to replace'
-                    : 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-                }
-                onChange={setAccountSid}
+                label="Sender number or approved Sender ID"
+                value={from}
+                placeholder="+12025550123"
+                helpText="Sender IDs and international traffic might require registration with Twilio."
+                onChange={setFrom}
                 autoComplete="off"
               />
+            </BlockStack>
+          ) : (
+            <BlockStack gap="400">
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="h2" variant="headingMd">
+                  eSMS Vietnam connection
+                </Text>
+                <Badge tone="new">New</Badge>
+              </InlineStack>
+              <Banner tone="info">
+                Use your eSMS API credentials and an approved Brandname. eSMS
+                customer-care content must match a template registered with eSMS
+                before live delivery.
+              </Banner>
+              <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+                <TextField
+                  label="API Key"
+                  value={apiKey}
+                  placeholder={
+                    integration.data?.hasApiKey
+                      ? 'Saved securely — enter to replace'
+                      : 'Enter eSMS API Key'
+                  }
+                  onChange={setApiKey}
+                  autoComplete="off"
+                />
+                <TextField
+                  label="Secret Key"
+                  type="password"
+                  value={secretKey}
+                  placeholder={
+                    integration.data?.hasSecretKey
+                      ? 'Saved securely — enter to replace'
+                      : 'Enter eSMS Secret Key'
+                  }
+                  onChange={setSecretKey}
+                  autoComplete="new-password"
+                />
+              </InlineGrid>
               <TextField
-                label="Auth Token"
-                type="password"
-                value={authToken}
-                placeholder={
-                  integration.data?.hasAuthToken
-                    ? 'Saved securely — enter to replace'
-                    : 'Enter Twilio auth token'
-                }
-                onChange={setAuthToken}
-                autoComplete="new-password"
+                label="Registered Brandname"
+                value={brandname}
+                placeholder="Your approved eSMS Brandname"
+                helpText="Enter the Brandname exactly as approved in your eSMS account."
+                onChange={setBrandname}
+                autoComplete="off"
               />
-            </InlineGrid>
-            <TextField
-              label="Sender number or approved Sender ID"
-              value={from}
-              placeholder="+12025550123"
-              helpText="For Vietnam, sender IDs and traffic might require registration with your provider."
-              onChange={setFrom}
-              autoComplete="off"
-            />
-          </BlockStack>
+              <Checkbox
+                label="Use eSMS sandbox (no charge and no SMS delivery)"
+                helpText="Sandbox lets eSMS validate send requests without charging the account or delivering a message. Turn this off only after Brandname and content approval."
+                checked={sandbox}
+                onChange={setSandbox}
+              />
+            </BlockStack>
+          )}
 
           <Checkbox
             label="Enable SMS confirmations with this connection"
@@ -220,14 +307,20 @@ export default function SmsProvidersPage() {
             onChange={setEnabled}
           />
 
-          {missingTwilioFields ? (
+          {missingProviderFields ? (
             <Banner tone="warning">
-              Complete all Twilio fields before enabling the connection.
+              Complete all {provider === 'esms' ? 'eSMS' : 'Twilio'} fields
+              before enabling the connection.
             </Banner>
           ) : null}
 
           {test.isSuccess ? (
-            <Banner tone="success">Connection verified successfully.</Banner>
+            <Banner tone="success">
+              Connection verified successfully.
+              {test.data.balance !== undefined
+                ? ` eSMS balance: ${test.data.balance}.`
+                : ''}
+            </Banner>
           ) : null}
 
           <InlineStack align="space-between" blockAlign="center" gap="300">
@@ -250,7 +343,7 @@ export default function SmsProvidersPage() {
               </Button>
               <Button
                 variant="primary"
-                disabled={!dirty || missingTwilioFields || update.isPending}
+                disabled={!dirty || missingProviderFields || update.isPending}
                 loading={update.isPending}
                 onClick={() => void save()}
               >
@@ -318,8 +411,22 @@ function ProviderCard({
           <Text as="h3" variant="headingMd">
             {provider.name}
           </Text>
-          <Badge tone={unavailable ? 'new' : selected ? 'info' : undefined}>
-            {unavailable ? 'Coming soon' : selected ? 'Selected' : 'Available'}
+          <Badge
+            tone={
+              unavailable || provider.badge === 'new'
+                ? 'new'
+                : selected
+                  ? 'info'
+                  : undefined
+            }
+          >
+            {unavailable
+              ? 'Coming soon'
+              : selected
+                ? 'Selected'
+                : provider.badge === 'new'
+                  ? 'New'
+                  : 'Available'}
           </Badge>
         </InlineStack>
         <Text as="p" tone="subdued">

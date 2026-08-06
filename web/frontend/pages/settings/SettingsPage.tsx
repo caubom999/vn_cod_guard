@@ -31,6 +31,7 @@ import { ShopifyTagsSection } from './components/ShopifyTagsSection';
 import { VerificationWorkflowSection } from './components/VerificationWorkflowSection';
 import {
   emptySettingsForm,
+  toSettingsPatch,
   toSettingsForm,
   validateSettingsForm,
 } from './settings-form';
@@ -123,8 +124,10 @@ function SettingsScreen() {
 
     const updates: Promise<unknown>[] = [];
 
-    if (settingsDirty) {
-      updates.push(updateSettings.mutateAsync(form));
+    if (settingsDirty && settings) {
+      updates.push(
+        updateSettings.mutateAsync(toSettingsPatch(form, settings)),
+      );
     }
 
     if (shippingMethodDirty && deliveryRule.data) {
@@ -163,6 +166,10 @@ function SettingsScreen() {
     if (deliveryRule.data) {
       setShippingMethodName(deliveryRule.data.shippingMethodName);
     }
+
+    updateSettings.reset();
+    updateDeliveryRule.reset();
+    updatePaymentRule.reset();
   };
 
   return (
@@ -230,14 +237,15 @@ function SettingsScreen() {
 
           <SaveBar id="cod-settings-save-bar" open={isDirty}>
             <button
+              type="button"
               variant="primary"
               disabled={!isValid || isSaving}
               loading={isSaving}
-              onClick={handleSave}
+              onClick={() => void handleSave()}
             >
               Save
             </button>
-            <button disabled={isSaving} onClick={handleDiscard}>
+            <button type="button" disabled={isSaving} onClick={handleDiscard}>
               Discard
             </button>
           </SaveBar>

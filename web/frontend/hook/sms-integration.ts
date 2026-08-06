@@ -6,26 +6,35 @@ export type SmsProviderOption = {
   name: string;
   description: string;
   availability: 'available' | 'coming-soon';
+  badge?: 'new';
 };
 
 export type SmsIntegration = {
-  provider: 'twilio';
+  provider: 'twilio' | 'esms';
   enabled: boolean;
   configured: boolean;
   from: string;
+  brandname: string;
+  sandbox: boolean;
   hasAccountSid: boolean;
   hasAuthToken: boolean;
+  hasApiKey: boolean;
+  hasSecretKey: boolean;
   billingOwner: 'merchant' | 'platform';
   updatedAt: string;
   providers: SmsProviderOption[];
 };
 
 export type UpdateSmsIntegration = {
-  provider: 'twilio';
+  provider: 'twilio' | 'esms';
   enabled: boolean;
   from?: string;
   accountSid?: string;
   authToken?: string;
+  apiKey?: string;
+  secretKey?: string;
+  brandname?: string;
+  sandbox?: boolean;
 };
 
 export function useSmsIntegration() {
@@ -56,9 +65,10 @@ export function useTestSmsIntegration() {
   const api = useApi();
   return useMutation({
     mutationFn: () =>
-      api<{ ok: true; provider: string }>('/api/cod/integrations/sms/test', {
-        method: 'POST',
-      }),
+      api<{ ok: true; provider: string; balance?: number }>(
+        '/api/cod/integrations/sms/test',
+        { method: 'POST' },
+      ),
   });
 }
 

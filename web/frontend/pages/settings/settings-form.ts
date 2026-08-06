@@ -38,6 +38,22 @@ export function toSettingsForm(settings: CodSettings): UpdateCodSettings {
   };
 }
 
+export function toSettingsPatch(
+  form: UpdateCodSettings,
+  settings: CodSettings,
+): Partial<UpdateCodSettings> {
+  const baseline = toSettingsForm(settings);
+  const keys = Object.keys(baseline) as Array<keyof UpdateCodSettings>;
+
+  return Object.fromEntries(
+    keys
+      .filter(
+        (key) => JSON.stringify(form[key]) !== JSON.stringify(baseline[key]),
+      )
+      .map((key) => [key, form[key]]),
+  ) as Partial<UpdateCodSettings>;
+}
+
 export function validateSettingsForm(
   form: UpdateCodSettings,
 ): SettingsValidation {
