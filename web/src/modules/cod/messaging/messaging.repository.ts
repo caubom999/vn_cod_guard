@@ -70,25 +70,6 @@ export class MessagingRepository {
     });
   }
 
-  getOrCreateSmsIntegration(shopId: number) {
-    return this.prisma.codChannelIntegration.upsert({
-      where: {
-        shopId_provider: {
-          shopId,
-          provider: ChannelIntegrationProvider.SMS,
-        },
-      },
-      update: { enabled: true },
-      create: {
-        shopId,
-        provider: ChannelIntegrationProvider.SMS,
-        enabled: true,
-        senderName: 'COD Guard',
-        configJson: { mode: 'dev-log' },
-      },
-    });
-  }
-
   getOrCreateEmailIntegration(shopId: number) {
     return this.prisma.codChannelIntegration.upsert({
       where: {

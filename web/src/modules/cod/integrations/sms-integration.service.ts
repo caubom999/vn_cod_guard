@@ -4,7 +4,7 @@ import { IntegrationSecretService } from './integration-secret.service';
 import { SmsIntegrationRepository } from './sms-integration.repository';
 import { SmsProvider } from '../messaging/providers/sms.provider';
 
-type SmsProviderId = 'twilio' | 'dev-log';
+type SmsProviderId = 'twilio';
 
 export type UpdateSmsIntegrationDto = {
   provider?: SmsProviderId;
@@ -15,7 +15,7 @@ export type UpdateSmsIntegrationDto = {
 };
 
 type StoredSmsConfig = {
-  provider?: SmsProviderId;
+  provider?: string;
   from?: string;
   billingMode?: 'platform' | 'merchant-direct';
 };
@@ -38,13 +38,7 @@ export class SmsIntegrationService {
     const currentSecrets = this.secrets.decrypt(
       integration.encryptedSecretJson,
     );
-    const provider = dto.provider || currentConfig.provider || 'twilio';
-
-    if (provider === 'dev-log' && process.env.NODE_ENV === 'production') {
-      throw new BadRequestException(
-        'The development SMS provider cannot be enabled in production',
-      );
-    }
+    const provider: SmsProviderId = 'twilio';
 
     const from = dto.from?.trim() || currentConfig.from || '';
     const accountSid =
@@ -52,7 +46,7 @@ export class SmsIntegrationService {
     const authToken = dto.authToken?.trim() || currentSecrets.authToken || '';
     const enabled = dto.enabled ?? integration.enabled;
 
-    if (provider === 'twilio' && enabled) {
+    if (enabled) {
       if (!accountSid || !authToken || !from) {
         throw new BadRequestException(
           'Twilio Account SID, Auth Token, and sender number are required',
@@ -68,15 +62,12 @@ export class SmsIntegrationService {
       configJson: {
         provider,
         from,
-        billingMode: provider === 'dev-log' ? 'platform' : 'merchant-direct',
+        billingMode: 'merchant-direct',
       } as Prisma.InputJsonValue,
-      encryptedSecretJson:
-        provider === 'twilio'
-          ? (this.secrets.encrypt({
-              accountSid,
-              authToken,
-            }) as Prisma.InputJsonValue)
-          : Prisma.JsonNull,
+      encryptedSecretJson: this.secrets.encrypt({
+        accountSid,
+        authToken,
+      }) as Prisma.InputJsonValue,
     });
 
     return this.toResponse(updated);
@@ -111,20 +102,15 @@ export class SmsIntegrationService {
   async getRuntimeConfiguration(shopId: number) {
     const integration = await this.integrations.getOrCreate(shopId);
     const config = this.readConfig(integration.configJson);
-    const provider = config.provider || this.environmentProvider();
+    const provider: SmsProviderId = 'twilio';
     const storedSecrets = this.secrets.decrypt(integration.encryptedSecretJson);
 
-    if (
-      provider === 'twilio' &&
-      storedSecrets.accountSid &&
-      storedSecrets.authToken
-    ) {
+    if (storedSecrets.accountSid && storedSecrets.authToken) {
       return {
         enabled: integration.enabled,
         configured: Boolean(config.from),
         provider,
         integrationConfig: {
-          mode: 'twilio',
           from: config.from,
           accountSid: storedSecrets.accountSid,
           authToken: storedSecrets.authToken,
@@ -133,14 +119,12 @@ export class SmsIntegrationService {
       };
     }
 
-    const environmentConfigured =
-      this.isEnvironmentProviderConfigured(provider);
+    const environmentConfigured = this.isEnvironmentProviderConfigured();
     return {
       enabled: integration.enabled || environmentConfigured,
       configured: environmentConfigured,
       provider,
       integrationConfig: {
-        mode: provider,
         from: config.from,
         billingMode: 'platform' as const,
       },
@@ -156,16 +140,11 @@ export class SmsIntegrationService {
   }) {
     const config = this.readConfig(integration.configJson);
     const storedSecrets = this.secrets.decrypt(integration.encryptedSecretJson);
-    const provider = config.provider || this.environmentProvider();
-    const configured =
-      provider === 'dev-log'
-        ? process.env.NODE_ENV !== 'production'
-        : Boolean(
-            (storedSecrets.accountSid &&
-              storedSecrets.authToken &&
-              config.from) ||
-              this.isEnvironmentProviderConfigured(provider),
-          );
+    const provider: SmsProviderId = 'twilio';
+    const configured = Boolean(
+      (storedSecrets.accountSid && storedSecrets.authToken && config.from) ||
+        this.isEnvironmentProviderConfigured(),
+    );
 
     return {
       provider,
@@ -174,7 +153,7 @@ export class SmsIntegrationService {
       from: config.from || '',
       hasAccountSid: Boolean(storedSecrets.accountSid),
       hasAuthToken: Boolean(storedSecrets.authToken),
-      billingOwner: provider === 'dev-log' ? 'platform' : 'merchant',
+      billingOwner: 'merchant' as const,
       updatedAt: integration.updatedAt,
       providers: [
         {
@@ -189,16 +168,6 @@ export class SmsIntegrationService {
           description: 'Local sender-name and domestic routing support.',
           availability: 'coming-soon',
         },
-        ...(process.env.NODE_ENV !== 'production'
-          ? [
-              {
-                id: 'dev-log',
-                name: 'Development sandbox',
-                description: 'Writes masked messages to the application log.',
-                availability: 'development',
-              },
-            ]
-          : []),
       ],
     };
   }
@@ -210,17 +179,7 @@ export class SmsIntegrationService {
     return value as StoredSmsConfig;
   }
 
-  private environmentProvider(): SmsProviderId {
-    return process.env.SMS_PROVIDER?.toLowerCase() === 'twilio'
-      ? 'twilio'
-      : 'dev-log';
-  }
-
-  private isEnvironmentProviderConfigured(provider: SmsProviderId) {
-    if (provider === 'dev-log') {
-      return process.env.NODE_ENV !== 'production';
-    }
-
+  private isEnvironmentProviderConfigured() {
     return Boolean(
       process.env.TWILIO_ACCOUNT_SID &&
         process.env.TWILIO_AUTH_TOKEN &&

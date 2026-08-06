@@ -2,14 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from './api';
 
 export type SmsProviderOption = {
-  id: 'twilio' | 'esms' | 'dev-log';
+  id: 'twilio' | 'esms';
   name: string;
   description: string;
-  availability: 'available' | 'coming-soon' | 'development';
+  availability: 'available' | 'coming-soon';
 };
 
 export type SmsIntegration = {
-  provider: 'twilio' | 'dev-log';
+  provider: 'twilio';
   enabled: boolean;
   configured: boolean;
   from: string;
@@ -21,7 +21,7 @@ export type SmsIntegration = {
 };
 
 export type UpdateSmsIntegration = {
-  provider: 'twilio' | 'dev-log';
+  provider: 'twilio';
   enabled: boolean;
   from?: string;
   accountSid?: string;

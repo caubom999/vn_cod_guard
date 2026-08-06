@@ -23,7 +23,7 @@ import {
   useUpdateSmsIntegration,
 } from '../../hook/sms-integration';
 
-type ProviderId = 'twilio' | 'dev-log';
+type ProviderId = 'twilio';
 
 export default function SmsProvidersPage() {
   const integration = useSmsIntegration();
@@ -175,51 +175,44 @@ export default function SmsProvidersPage() {
 
           <Divider />
 
-          {provider === 'twilio' ? (
-            <BlockStack gap="400">
-              <Text as="h2" variant="headingMd">
-                Twilio connection
-              </Text>
-              <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-                <TextField
-                  label="Account SID"
-                  value={accountSid}
-                  placeholder={
-                    integration.data?.hasAccountSid
-                      ? 'Saved securely — enter to replace'
-                      : 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-                  }
-                  onChange={setAccountSid}
-                  autoComplete="off"
-                />
-                <TextField
-                  label="Auth Token"
-                  type="password"
-                  value={authToken}
-                  placeholder={
-                    integration.data?.hasAuthToken
-                      ? 'Saved securely — enter to replace'
-                      : 'Enter Twilio auth token'
-                  }
-                  onChange={setAuthToken}
-                  autoComplete="new-password"
-                />
-              </InlineGrid>
+          <BlockStack gap="400">
+            <Text as="h2" variant="headingMd">
+              Twilio connection
+            </Text>
+            <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
               <TextField
-                label="Sender number or approved Sender ID"
-                value={from}
-                placeholder="+12025550123"
-                helpText="For Vietnam, sender IDs and traffic might require registration with your provider."
-                onChange={setFrom}
+                label="Account SID"
+                value={accountSid}
+                placeholder={
+                  integration.data?.hasAccountSid
+                    ? 'Saved securely — enter to replace'
+                    : 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+                }
+                onChange={setAccountSid}
                 autoComplete="off"
               />
-            </BlockStack>
-          ) : (
-            <Banner tone="info">
-              Development sandbox masks recipients and writes messages to the
-              backend log. It never sends a real SMS.
-            </Banner>
-          )}
+              <TextField
+                label="Auth Token"
+                type="password"
+                value={authToken}
+                placeholder={
+                  integration.data?.hasAuthToken
+                    ? 'Saved securely — enter to replace'
+                    : 'Enter Twilio auth token'
+                }
+                onChange={setAuthToken}
+                autoComplete="new-password"
+              />
+            </InlineGrid>
+            <TextField
+              label="Sender number or approved Sender ID"
+              value={from}
+              placeholder="+12025550123"
+              helpText="For Vietnam, sender IDs and traffic might require registration with your provider."
+              onChange={setFrom}
+              autoComplete="off"
+            />
+          </BlockStack>
 
           <Checkbox
             label="Enable SMS confirmations with this connection"

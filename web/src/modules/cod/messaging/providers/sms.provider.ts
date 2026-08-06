@@ -1,7 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 export type SmsIntegrationConfig = {
-  mode?: string;
   from?: string;
   accountSid?: string;
   authToken?: string;
@@ -23,10 +22,8 @@ export type SendSmsResult = {
 
 @Injectable()
 export class SmsProvider {
-  private readonly logger = new Logger(SmsProvider.name);
-
-  getProviderName(config: unknown) {
-    return this.getMode(config) === 'twilio' ? 'TWILIO' : 'DEV_LOG';
+  getProviderName(_config: unknown) {
+    return 'TWILIO';
   }
 
   async send(input: SendSmsInput): Promise<SendSmsResult> {
@@ -41,35 +38,11 @@ export class SmsProvider {
       throw new Error('SMS exceeds the maximum of 3 segments');
     }
 
-    if (this.getMode(input.integrationConfig) === 'twilio') {
-      return this.sendWithTwilio({ ...input, to }, segments);
-    }
-
-    this.logger.log(
-      `[COD Guard] SMS queued via dev provider\nTo: ${this.maskPhone(to)}\nSegments: ${segments}\n${this.redactVerificationTokens(input.body)}`,
-    );
-
-    return {
-      provider: 'DEV_LOG',
-      providerMessageId: 'dev-sms-' + Date.now(),
-      segments,
-      billingMode:
-        this.getConfig(input.integrationConfig).billingMode || 'platform',
-    };
+    return this.sendWithTwilio({ ...input, to }, segments);
   }
 
   async verifyConnection(integrationConfig: unknown) {
     const config = this.getConfig(integrationConfig);
-    const mode = this.getMode(integrationConfig);
-
-    if (mode === 'dev-log') {
-      return { ok: true };
-    }
-
-    if (mode !== 'twilio') {
-      throw new Error('Unsupported SMS provider');
-    }
-
     const accountSid = config.accountSid || process.env.TWILIO_ACCOUNT_SID;
     const authToken = config.authToken || process.env.TWILIO_AUTH_TOKEN;
 
@@ -174,14 +147,6 @@ export class SmsProvider {
     return null;
   }
 
-  private getMode(config: unknown) {
-    return (
-      this.getConfig(config).mode ||
-      process.env.SMS_PROVIDER ||
-      'dev-log'
-    ).toLowerCase();
-  }
-
   private getConfig(config: unknown): SmsIntegrationConfig {
     if (!config || typeof config !== 'object' || Array.isArray(config)) {
       return {};
@@ -196,16 +161,5 @@ export class SmsProvider {
     } catch {
       return {};
     }
-  }
-
-  private maskPhone(phone: string) {
-    return phone.slice(0, 4) + '***' + phone.slice(-3);
-  }
-
-  private redactVerificationTokens(value: string) {
-    return value.replace(
-      /\/(?:api\/)?verify\/[^\s"'<>?]+/g,
-      '/verify/[redacted-token]',
-    );
   }
 }
