@@ -13,9 +13,9 @@ export type SmsIntegration = {
   provider: 'twilio' | 'esms';
   enabled: boolean;
   configured: boolean;
+  readyForLiveDelivery: boolean;
   from: string;
   brandname: string;
-  sandbox: boolean;
   hasAccountSid: boolean;
   hasAuthToken: boolean;
   hasApiKey: boolean;
@@ -34,7 +34,6 @@ export type UpdateSmsIntegration = {
   apiKey?: string;
   secretKey?: string;
   brandname?: string;
-  sandbox?: boolean;
 };
 
 export function useSmsIntegration() {
@@ -63,12 +62,20 @@ export function useUpdateSmsIntegration() {
 
 export function useTestSmsIntegration() {
   const api = useApi();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      api<{ ok: true; provider: string; balance?: number }>(
-        '/api/cod/integrations/sms/test',
-        { method: 'POST' },
-      ),
+      api<{
+        ok: true;
+        provider: string;
+        balance?: number;
+        registeredTemplateCount?: number;
+        registeredNetworks?: string[];
+      }>('/api/cod/integrations/sms/test', { method: 'POST' }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['sms-integration'] });
+      void queryClient.invalidateQueries({ queryKey: ['cod-settings'] });
+    },
   });
 }
 

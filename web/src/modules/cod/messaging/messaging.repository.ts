@@ -93,7 +93,7 @@ export class MessagingRepository {
     return this.prisma.codMessageDelivery.create({ data });
   }
 
-  markDeliverySent(
+  async markDeliverySent(
     id: number,
     data: {
       providerMessageId?: string;
@@ -102,16 +102,34 @@ export class MessagingRepository {
   ) {
     const now = new Date();
 
-    return this.prisma.codMessageDelivery.update({
-      where: { id },
+    if (data.delivered) {
+      return this.prisma.codMessageDelivery.update({
+        where: { id },
+        data: {
+          status: MessageDeliveryStatus.DELIVERED,
+          providerMessageId: data.providerMessageId,
+          sentAt: now,
+          deliveredAt: now,
+        },
+      });
+    }
+
+    await this.prisma.codMessageDelivery.updateMany({
+      where: {
+        id,
+        status: {
+          in: [MessageDeliveryStatus.QUEUED, MessageDeliveryStatus.SENT],
+        },
+      },
       data: {
-        status: data.delivered
-          ? MessageDeliveryStatus.DELIVERED
-          : MessageDeliveryStatus.SENT,
+        status: MessageDeliveryStatus.SENT,
         providerMessageId: data.providerMessageId,
         sentAt: now,
-        deliveredAt: data.delivered ? now : undefined,
       },
+    });
+
+    return this.prisma.codMessageDelivery.findUniqueOrThrow({
+      where: { id },
     });
   }
 
@@ -122,6 +140,36 @@ export class MessagingRepository {
         status: MessageDeliveryStatus.FAILED,
         error,
       },
+    });
+  }
+
+  findDeliveryForProviderCallback(id: number) {
+    return this.prisma.codMessageDelivery.findUnique({
+      where: { id },
+      include: {
+        session: {
+          select: {
+            id: true,
+            codOrderId: true,
+          },
+        },
+      },
+    });
+  }
+
+  updateDeliveryProviderStatus(
+    id: number,
+    data: {
+      status: MessageDeliveryStatus;
+      providerMessageId: string;
+      error?: string | null;
+      sentAt?: Date;
+      deliveredAt?: Date | null;
+    },
+  ) {
+    return this.prisma.codMessageDelivery.update({
+      where: { id },
+      data,
     });
   }
 

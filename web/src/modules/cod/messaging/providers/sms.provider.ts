@@ -9,13 +9,13 @@ export type SmsIntegrationConfig = {
   apiKey?: string;
   secretKey?: string;
   brandname?: string;
-  sandbox?: boolean;
   billingMode?: 'platform' | 'merchant-direct';
 };
 
 export type SendSmsInput = {
   to: string;
   body: string;
+  callbackUrl?: string;
   integrationConfig?: unknown;
 };
 
@@ -25,6 +25,14 @@ export type SendSmsResult = {
   segments: number;
   billingMode: 'platform' | 'merchant-direct';
 };
+
+type EsmsTemplate = {
+  NetworkID?: string | number;
+  TempId?: string | number;
+  TempContent?: string;
+};
+
+const ESMS_REQUEST_TIMEOUT_MS = 15_000;
 
 @Injectable()
 export class SmsProvider {
@@ -50,10 +58,13 @@ export class SmsProvider {
       : this.sendWithTwilio({ ...input, to }, segments);
   }
 
-  async verifyConnection(integrationConfig: unknown) {
+  async verifyConnection(
+    integrationConfig: unknown,
+    validation: { sampleBody?: string } = {},
+  ) {
     const config = this.getConfig(integrationConfig);
     if (config.provider === 'esms') {
-      return this.verifyEsmsConnection(config);
+      return this.verifyEsmsConnection(config, validation.sampleBody);
     }
 
     const accountSid = config.accountSid || process.env.TWILIO_ACCOUNT_SID;
@@ -160,10 +171,12 @@ export class SmsProvider {
     }
 
     if (!phone) {
-      throw new Error('eSMS Vietnam only supports Vietnamese phone numbers');
+      throw new Error(
+        'eSMS Vietnam requires a valid mobile number starting with 03, 05, 07, 08, or 09',
+      );
     }
 
-    const response = await fetch(
+    const response = await this.fetchWithTimeout(
       'https://rest.esms.vn/MainService.svc/json/SendMultipleMessage_V4_post_json/',
       {
         method: 'POST',
@@ -176,10 +189,12 @@ export class SmsProvider {
           Brandname: brandname,
           SmsType: '2',
           IsUnicode: /[^\x00-\x7F]/.test(input.body) ? '1' : '0',
-          Sandbox: config.sandbox ? '1' : '0',
+          Sandbox: '0',
           RequestId: this.createEsmsRequestId(),
+          ...(input.callbackUrl ? { CallbackUrl: input.callbackUrl } : {}),
         }),
       },
+      'eSMS send request',
     );
     const payload = this.parseJson(await response.text()) as {
       CodeResult?: string | number;
@@ -202,47 +217,142 @@ export class SmsProvider {
     };
   }
 
-  private async verifyEsmsConnection(config: SmsIntegrationConfig) {
+  private async verifyEsmsConnection(
+    config: SmsIntegrationConfig,
+    sampleBody?: string,
+  ) {
     if (!config.apiKey || !config.secretKey || !config.brandname) {
       throw new Error(
         'eSMS API Key, Secret Key, and registered Brandname are required',
       );
     }
 
-    const response = await fetch(
-      'https://rest.esms.vn/MainService.svc/json/GetBalance_json',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    const request = (
+      url: string,
+      body: Record<string, string>,
+      label: string,
+    ) =>
+      this.fetchWithTimeout(
+        url,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        },
+        label,
+      );
+    const [balanceResponse, templateResponse] = await Promise.all([
+      request(
+        'https://rest.esms.vn/MainService.svc/json/GetBalance_json',
+        {
           ApiKey: config.apiKey,
           SecretKey: config.secretKey,
-        }),
-      },
-    );
-    const payload = this.parseJson(await response.text()) as {
+        },
+        'eSMS balance check',
+      ),
+      request(
+        'https://rest.esms.vn/MainService.svc/json/GetTemplate/',
+        {
+          ApiKey: config.apiKey,
+          SecretKey: config.secretKey,
+          SmsType: '2',
+          Brandname: config.brandname,
+        },
+        'eSMS Brandname template check',
+      ),
+    ]);
+    const balancePayload = this.parseJson(await balanceResponse.text()) as {
       CodeResponse?: string | number;
       Balance?: number | string;
       ErrorMessage?: string;
     };
-    const responseCode = this.readCode(payload.CodeResponse);
+    const balanceCode = this.readCode(balancePayload.CodeResponse);
 
-    if (!response.ok || responseCode !== '100') {
+    if (!balanceResponse.ok || balanceCode !== '100') {
       throw new Error(
         this.formatEsmsError(
-          responseCode,
-          payload.ErrorMessage,
-          response.status,
+          balanceCode,
+          balancePayload.ErrorMessage,
+          balanceResponse.status,
         ),
       );
     }
 
-    const balance = Number(payload.Balance);
-    return { balance: Number.isFinite(balance) ? balance : undefined };
+    const templatePayload = this.parseJson(await templateResponse.text()) as {
+      CodeResult?: string | number;
+      CodeResponse?: string | number;
+      BrandnameTemplates?: EsmsTemplate[];
+      ErrorMessage?: string;
+    };
+    const templateCode = this.readCode(
+      templatePayload.CodeResult ?? templatePayload.CodeResponse,
+    );
+
+    if (!templateResponse.ok || templateCode !== '100') {
+      throw new Error(
+        this.formatEsmsError(
+          templateCode,
+          templatePayload.ErrorMessage,
+          templateResponse.status,
+        ),
+      );
+    }
+
+    const templates = Array.isArray(templatePayload.BrandnameTemplates)
+      ? templatePayload.BrandnameTemplates
+      : [];
+
+    if (!templates.length) {
+      throw new Error(
+        `The eSMS Brandname ${config.brandname} has no approved customer-care templates`,
+      );
+    }
+
+    const balance = Number(balancePayload.Balance);
+    const registeredNetworks = Array.from(
+      new Set(
+        templates
+          .map((template) => this.readCode(template.NetworkID))
+          .filter((network): network is string => Boolean(network)),
+      ),
+    );
+    const matchingTemplates = sampleBody
+      ? templates.filter(
+          (template) =>
+            typeof template.TempContent === 'string' &&
+            this.matchesEsmsTemplate(sampleBody, template.TempContent),
+        )
+      : [];
+
+    if (sampleBody && !matchingTemplates.length) {
+      throw new Error(
+        'The current COD SMS content and verification domain do not match any approved eSMS customer-care template',
+      );
+    }
+
+    const matchingNetworks = Array.from(
+      new Set(
+        matchingTemplates
+          .map((template) => this.readCode(template.NetworkID))
+          .filter((network): network is string => Boolean(network)),
+      ),
+    );
+
+    return {
+      balance: Number.isFinite(balance) ? balance : undefined,
+      registeredTemplateCount: templates.length,
+      registeredNetworks,
+      ...(sampleBody
+        ? {
+            matchingTemplateCount: matchingTemplates.length,
+            matchingNetworks,
+          }
+        : {}),
+    };
   }
 
   private toEsmsPhone(value: string) {
-    if (!/^\+84\d{9,10}$/.test(value)) {
+    if (!/^\+84(?:3|5|7|8|9)\d{8}$/.test(value)) {
       return null;
     }
     return '0' + value.slice(3);
@@ -307,6 +417,58 @@ export class SmsProvider {
       return JSON.parse(value);
     } catch {
       return {};
+    }
+  }
+
+  private matchesEsmsTemplate(content: string, template: string) {
+    const normalizedContent = this.normalizeEsmsContent(content);
+    const normalizedTemplate = this.normalizeEsmsContent(template);
+    const placeholder = /\{P[12],(\d+)}|\{P[12]}|\{OTP}/gi;
+    let pattern = '^';
+    let cursor = 0;
+
+    for (const match of normalizedTemplate.matchAll(placeholder)) {
+      pattern += this.escapeRegExp(
+        normalizedTemplate.slice(cursor, match.index),
+      );
+      const maximumLength = match[1]
+        ? Math.min(500, Math.max(1, Number(match[1])))
+        : 500;
+      pattern += `[\\s\\S]{1,${maximumLength}}`;
+      cursor = (match.index || 0) + match[0].length;
+    }
+
+    pattern += this.escapeRegExp(normalizedTemplate.slice(cursor)) + '$';
+    return new RegExp(pattern).test(normalizedContent);
+  }
+
+  private normalizeEsmsContent(value: string) {
+    return value.replace(/\s+/g, ' ').trim();
+  }
+
+  private escapeRegExp(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  private async fetchWithTimeout(
+    url: string,
+    init: RequestInit,
+    label: string,
+  ) {
+    try {
+      return await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(ESMS_REQUEST_TIMEOUT_MS),
+      });
+    } catch (error) {
+      const cause =
+        error && typeof error === 'object' && 'cause' in error
+          ? (error.cause as { code?: unknown } | undefined)
+          : undefined;
+      const code =
+        typeof cause?.code === 'string' && cause.code ? cause.code : undefined;
+
+      throw new Error(`${label} failed${code ? ` (${code})` : ''}`);
     }
   }
 }

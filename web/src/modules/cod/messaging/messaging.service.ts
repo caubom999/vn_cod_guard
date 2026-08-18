@@ -10,10 +10,16 @@ import { MessagingRepository } from './messaging.repository';
 import { MessageTemplateRenderer } from './message-template.renderer';
 import { EmailProvider } from './providers/email.provider';
 import { SmsProvider } from './providers/sms.provider';
+import { SmsIntegrationConfig } from './providers/sms.provider';
 import { renderTemplate1 } from '../verification/templates/template-1';
 import { renderTemplate2 } from '../verification/templates/template-2';
 import { renderTemplate3 } from '../verification/templates/template-3';
 import { SmsIntegrationService } from '../integrations/sms-integration.service';
+import { EsmsCallbackService } from './esms-callback.service';
+import {
+  getSmsTemplateValidationError,
+  isTemporaryVerificationUrl,
+} from './sms-template.validator';
 
 type SendVerificationMessageInput = {
   verificationSessionId: number;
@@ -30,6 +36,7 @@ export class MessagingService {
     private readonly emailProvider: EmailProvider,
     private readonly smsProvider: SmsProvider,
     private readonly smsIntegrations: SmsIntegrationService,
+    private readonly esmsCallbacks: EsmsCallbackService,
     private readonly appEventsBilling: AppEventsBillingService,
     private readonly config: ConfigService,
   ) {}
@@ -78,9 +85,14 @@ export class MessagingService {
     );
     const verificationUrl = this.buildVerificationUrl(token);
     const redactedVerificationUrl = this.redactVerificationUrl(verificationUrl);
+    const integrationConfig =
+      integration.integrationConfig as SmsIntegrationConfig;
     const body = [
       this.renderer.render(template.body, {
-        shopName: shop.name || shop.domain,
+        shopName:
+          integration.provider === 'esms'
+            ? integrationConfig.brandname || shop.name || shop.domain
+            : shop.name || shop.domain,
         customerName: order.customerName || 'ban',
         orderName: order.orderName || order.orderNumber || '#' + order.id,
         amount: order.totalAmount?.toString() || '',
@@ -114,10 +126,31 @@ export class MessagingService {
         throw new Error('SMS channel integration is disabled');
       }
 
+      const templateError = getSmsTemplateValidationError(template.body);
+      if (templateError) {
+        throw new Error(templateError);
+      }
+
+      if (
+        integration.provider === 'esms' &&
+        isTemporaryVerificationUrl(verificationUrl) &&
+        !this.isAllowedDevelopmentTunnel(verificationUrl)
+      ) {
+        throw new Error(
+          'Live eSMS requires a stable public HTTPS HOST; localhost and temporary trycloudflare URLs are not supported',
+        );
+      }
+
+      const callbackUrl =
+        integration.provider === 'esms'
+          ? this.esmsCallbacks.buildCallbackUrl(delivery.id)
+          : undefined;
+
       const result = await this.smsProvider.send({
         to: recipient,
         body,
-        integrationConfig: integration.integrationConfig,
+        callbackUrl,
+        integrationConfig,
       });
       const sentAt = new Date();
       const updatedDelivery = await this.messages.markDeliverySent(
@@ -350,6 +383,22 @@ export class MessagingService {
     }
 
     return normalizedHost + '/api/verify/' + token;
+  }
+
+  private isAllowedDevelopmentTunnel(value: string) {
+    if (this.config.get<string>('app.env') === 'production') {
+      return false;
+    }
+
+    try {
+      const url = new URL(value);
+      return (
+        url.protocol === 'https:' &&
+        url.hostname.toLowerCase().endsWith('.trycloudflare.com')
+      );
+    } catch {
+      return false;
+    }
   }
 
   private buildVerificationEmailHtml(input: {

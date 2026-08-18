@@ -40,6 +40,8 @@ import { IntegrationSecretService } from './integrations/integration-secret.serv
 import { SmsIntegrationController } from './integrations/sms-integration.controller';
 import { SmsIntegrationRepository } from './integrations/sms-integration.repository';
 import { SmsIntegrationService } from './integrations/sms-integration.service';
+import { EsmsCallbackController } from './messaging/esms-callback.controller';
+import { EsmsCallbackService } from './messaging/esms-callback.service';
 
 @Module({
   imports: [PrismaModule, ShopModule, ShopifyModule, BillingModule],
@@ -53,6 +55,7 @@ import { SmsIntegrationService } from './integrations/sms-integration.service';
     CodDashboardController,
     MessageTemplateController,
     SmsIntegrationController,
+    EsmsCallbackController,
   ],
   providers: [
     CodDashboardService,
@@ -69,6 +72,7 @@ import { SmsIntegrationService } from './integrations/sms-integration.service';
     IntegrationSecretService,
     SmsIntegrationService,
     SmsIntegrationRepository,
+    EsmsCallbackService,
     RiskService,
     RiskRepository,
     CodOrderProcessorService,

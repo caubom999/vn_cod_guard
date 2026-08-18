@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { VerificationChannel } from '@prisma/client';
 import { MessagingRepository } from '../messaging/messaging.repository';
+import { getSmsTemplateValidationError } from '../messaging/sms-template.validator';
 import { MessageTemplateRepository } from './message-template.repository';
 
 export type UpdateMessageTemplateDto = {
@@ -64,16 +65,29 @@ export class MessageTemplateService {
         throw new BadRequestException('Template body is required');
       }
 
+      const sanitizedBody = this.removeLegacyVerificationUrlLines(dto.body);
+
+      if (!sanitizedBody) {
+        throw new BadRequestException('Template body is required');
+      }
+
       if (
         existing.channel === VerificationChannel.SMS &&
-        dto.body.length > 320
+        sanitizedBody.length > 320
       ) {
         throw new BadRequestException(
           'Template body must be 320 characters or fewer',
         );
       }
 
-      data.body = this.removeLegacyVerificationUrlLines(dto.body);
+      if (existing.channel === VerificationChannel.SMS) {
+        const validationError = getSmsTemplateValidationError(sanitizedBody);
+        if (validationError) {
+          throw new BadRequestException(validationError);
+        }
+      }
+
+      data.body = sanitizedBody;
     }
 
     if (dto.enabled !== undefined) {

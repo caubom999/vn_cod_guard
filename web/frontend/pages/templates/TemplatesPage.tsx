@@ -1,5 +1,6 @@
 import {
   Badge,
+  Banner,
   BlockStack,
   Button,
   Card,
@@ -88,6 +89,7 @@ function MessageTemplatesScreen() {
               templateKey: template.templateKey || 'template-1',
             };
             const dirty = isTemplateDirty(template, draft, isSms);
+            const smsError = isSms ? smsTemplateError(draft.body) : null;
 
             return (
               <Card key={template.id}>
@@ -103,7 +105,9 @@ function MessageTemplatesScreen() {
                     </InlineStack>
                     <Button
                       variant="primary"
-                      disabled={!dirty || updateTemplate.isPending}
+                      disabled={
+                        !dirty || Boolean(smsError) || updateTemplate.isPending
+                      }
                       loading={updateTemplate.isPending}
                       onClick={() =>
                         updateTemplate.mutate(
@@ -176,8 +180,16 @@ function MessageTemplatesScreen() {
                         multiline={isSms ? 5 : 10}
                         maxLength={isSms ? 320 : undefined}
                         showCharacterCount={isSms}
+                        helpText={
+                          isSms
+                            ? 'Allowed variables: {{shopName}}, {{customerName}}, {{orderName}}, {{amount}}, {{currency}}, {{expiresAt}}. COD Guard appends the verification URL.'
+                            : undefined
+                        }
                         autoComplete="off"
                       />
+                      {smsError ? (
+                        <Banner tone="critical">{smsError}</Banner>
+                      ) : null}
                     </BlockStack>
 
                     <BlockStack gap="200">
@@ -187,7 +199,7 @@ function MessageTemplatesScreen() {
                         </Text>
                         {isSms ? (
                           <Badge>
-                            {smsPreview(draft.body).segments} segment(s)
+                            {`${smsPreview(draft.body).segments} segment(s)`}
                           </Badge>
                         ) : (
                           <Badge>
@@ -265,6 +277,42 @@ function smsPreview(body: string) {
     segments,
     encoding: unicode ? 'Unicode' : 'GSM-compatible',
   };
+}
+
+function smsTemplateError(body: string) {
+  if (!body.trim()) {
+    return 'SMS template body is required.';
+  }
+
+  if (/\$\{[^}]+}/.test(body)) {
+    return 'Use {{variable}} placeholders; ${data.variable} is not supported.';
+  }
+
+  if (/https?:\/\//i.test(body)) {
+    return 'Remove URLs from the template. COD Guard appends the verification URL automatically.';
+  }
+
+  const allowed = new Set([
+    'shopName',
+    'customerName',
+    'orderName',
+    'amount',
+    'currency',
+    'expiresAt',
+  ]);
+
+  for (const match of body.matchAll(/{{\s*([a-zA-Z0-9_]+)\s*}}/g)) {
+    if (!allowed.has(match[1])) {
+      return `Unsupported SMS template variable: {{${match[1]}}}.`;
+    }
+  }
+
+  const withoutVariables = body.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, '');
+  if (withoutVariables.includes('{{') || withoutVariables.includes('}}')) {
+    return 'SMS template contains a malformed {{variable}} placeholder.';
+  }
+
+  return null;
 }
 
 function isTemplateDirty(

@@ -2,7 +2,10 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { IntegrationSecretService } from './integration-secret.service';
 import { SmsIntegrationRepository } from './sms-integration.repository';
-import { SmsProvider } from '../messaging/providers/sms.provider';
+import {
+  SmsIntegrationConfig,
+  SmsProvider,
+} from '../messaging/providers/sms.provider';
 
 type SmsProviderId = 'twilio' | 'esms';
 
@@ -15,14 +18,12 @@ export type UpdateSmsIntegrationDto = {
   apiKey?: string;
   secretKey?: string;
   brandname?: string;
-  sandbox?: boolean;
 };
 
 type StoredSmsConfig = {
   provider?: string;
   twilioFrom?: string;
   esmsBrandname?: string;
-  esmsSandbox?: boolean;
   // Kept for records created before provider-specific sender fields existed.
   from?: string;
   billingMode?: 'platform' | 'merchant-direct';
@@ -37,7 +38,8 @@ export class SmsIntegrationService {
   ) {}
 
   async get(shopId: number) {
-    return this.toResponse(await this.integrations.getOrCreate(shopId));
+    const integration = await this.integrations.getOrCreate(shopId);
+    return this.toResponse(integration);
   }
 
   async update(shopId: number, dto: UpdateSmsIntegrationDto) {
@@ -52,7 +54,6 @@ export class SmsIntegrationService {
       dto.from?.trim() || currentConfig.twilioFrom || currentConfig.from || '';
     const brandname =
       dto.brandname?.trim() || currentConfig.esmsBrandname || '';
-    const sandbox = dto.sandbox ?? currentConfig.esmsSandbox ?? true;
     const accountSid =
       dto.accountSid?.trim() || currentSecrets.accountSid || '';
     const authToken = dto.authToken?.trim() || currentSecrets.authToken || '';
@@ -86,7 +87,6 @@ export class SmsIntegrationService {
         provider,
         twilioFrom: from,
         esmsBrandname: brandname,
-        esmsSandbox: sandbox,
         billingMode: 'merchant-direct',
       } as Prisma.InputJsonValue,
       encryptedSecretJson: this.secrets.encrypt({
@@ -113,13 +113,14 @@ export class SmsIntegrationService {
   async test(shopId: number) {
     const runtime = await this.getRuntimeConfiguration(shopId);
 
-    if (!runtime.enabled) {
+    if (!runtime.enabled || !runtime.configured) {
       throw new BadRequestException('Enable and save the SMS connection first');
     }
 
     const result = await this.smsProvider.verifyConnection(
       runtime.integrationConfig,
     );
+
     return { ok: true, provider: runtime.provider, ...result };
   }
 
@@ -138,19 +139,19 @@ export class SmsIntegrationService {
       const configured = Boolean(
         storedSecrets.apiKey && storedSecrets.secretKey && config.esmsBrandname,
       );
+      const integrationConfig: SmsIntegrationConfig = {
+        provider,
+        apiKey: storedSecrets.apiKey,
+        secretKey: storedSecrets.secretKey,
+        brandname: config.esmsBrandname,
+        billingMode: 'merchant-direct',
+      };
 
       return {
         enabled: integration.enabled,
         configured,
         provider,
-        integrationConfig: {
-          provider,
-          apiKey: storedSecrets.apiKey,
-          secretKey: storedSecrets.secretKey,
-          brandname: config.esmsBrandname,
-          sandbox: config.esmsSandbox ?? true,
-          billingMode: 'merchant-direct' as const,
-        },
+        integrationConfig,
       };
     }
 
@@ -212,9 +213,9 @@ export class SmsIntegrationService {
       provider,
       enabled: integration.enabled && configured,
       configured,
+      readyForLiveDelivery: integration.enabled && configured,
       from: twilioFrom,
       brandname: config.esmsBrandname || '',
-      sandbox: config.esmsSandbox ?? true,
       hasAccountSid: Boolean(storedSecrets.accountSid),
       hasAuthToken: Boolean(storedSecrets.authToken),
       hasApiKey: Boolean(storedSecrets.apiKey),

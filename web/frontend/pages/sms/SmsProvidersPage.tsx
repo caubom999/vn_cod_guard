@@ -38,7 +38,6 @@ export default function SmsProvidersPage() {
   const [apiKey, setApiKey] = useState('');
   const [secretKey, setSecretKey] = useState('');
   const [brandname, setBrandname] = useState('');
-  const [sandbox, setSandbox] = useState(true);
 
   useEffect(() => {
     if (!integration.data) return;
@@ -46,7 +45,6 @@ export default function SmsProvidersPage() {
     setEnabled(integration.data.enabled);
     setFrom(integration.data.from);
     setBrandname(integration.data.brandname);
-    setSandbox(integration.data.sandbox);
   }, [integration.data]);
 
   const dirty = useMemo(() => {
@@ -57,7 +55,6 @@ export default function SmsProvidersPage() {
       enabled !== current.enabled ||
       from !== current.from ||
       brandname !== current.brandname ||
-      sandbox !== current.sandbox ||
       Boolean(accountSid) ||
       Boolean(authToken) ||
       Boolean(apiKey) ||
@@ -72,7 +69,6 @@ export default function SmsProvidersPage() {
     from,
     integration.data,
     provider,
-    sandbox,
     secretKey,
   ]);
 
@@ -102,7 +98,6 @@ export default function SmsProvidersPage() {
       apiKey: apiKey || undefined,
       secretKey: secretKey || undefined,
       brandname,
-      sandbox,
     });
     setAccountSid('');
     setAuthToken('');
@@ -147,15 +142,19 @@ export default function SmsProvidersPage() {
               </Text>
               <InlineStack gap="200" blockAlign="center">
                 <Badge
-                  tone={integration.data?.enabled ? 'success' : 'attention'}
+                  tone={
+                    integration.data?.readyForLiveDelivery
+                      ? 'success'
+                      : 'attention'
+                  }
                 >
-                  {integration.data?.enabled
+                  {integration.data?.readyForLiveDelivery
                     ? 'Ready to send'
                     : 'Action needed'}
                 </Badge>
               </InlineStack>
               <Text as="p" tone="subdued">
-                {integration.data?.enabled
+                {integration.data?.readyForLiveDelivery
                   ? 'COD confirmations can use this SMS connection.'
                   : 'Choose a provider and save valid credentials.'}
               </Text>
@@ -257,7 +256,8 @@ export default function SmsProvidersPage() {
               <Banner tone="info">
                 Use your eSMS API credentials and an approved Brandname. eSMS
                 customer-care content must match a template registered with eSMS
-                before live delivery.
+                before live delivery. Saving this connection enables live,
+                billable SMS immediately.
               </Banner>
               <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
                 <TextField
@@ -292,12 +292,6 @@ export default function SmsProvidersPage() {
                 onChange={setBrandname}
                 autoComplete="off"
               />
-              <Checkbox
-                label="Use eSMS sandbox (no charge and no SMS delivery)"
-                helpText="Sandbox lets eSMS validate send requests without charging the account or delivering a message. Turn this off only after Brandname and content approval."
-                checked={sandbox}
-                onChange={setSandbox}
-              />
             </BlockStack>
           )}
 
@@ -319,6 +313,9 @@ export default function SmsProvidersPage() {
               Connection verified successfully.
               {test.data.balance !== undefined
                 ? ` eSMS balance: ${test.data.balance}.`
+                : ''}
+              {test.data.registeredTemplateCount !== undefined
+                ? ` Approved customer-care templates: ${test.data.registeredTemplateCount}.`
                 : ''}
             </Banner>
           ) : null}
@@ -406,7 +403,7 @@ function ProviderCard({
       padding="400"
       background={selected ? 'bg-surface-info' : 'bg-surface'}
     >
-      <BlockStack gap="250">
+      <BlockStack gap="200">
         <InlineStack align="space-between" blockAlign="center" gap="200">
           <Text as="h3" variant="headingMd">
             {provider.name}
