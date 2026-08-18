@@ -37,6 +37,7 @@ test:
   script:
     - npm test --workspace hide-cod-delivery -- --run
     - npm test --workspace hide-cod-payment -- --run
+    - npx prisma generate --schema web/prisma/schema.prisma
     - npm test --workspace vn-cod-guard-web -- --runInBand --passWithNoTests
     - npm run build --workspace vn-cod-guard-web
     - npm run build --workspace vn-cod-guard-frontend
