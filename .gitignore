@@ -21,6 +21,10 @@ config/tunnel.pid
 # vite build output
 dist/
 
+# Cloudflare Wrangler local state
+.wrangler/
+worker-configuration.d.ts
+
 # extensions build output
 extensions/*/build
 

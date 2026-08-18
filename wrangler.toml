@@ -1,0 +1,71 @@
+name = "vn-cod-guard"
+main = "src/index.ts"
+compatibility_date = "2026-08-18"
+
+# Chỉ bật sau khi đã trỏ domain vtjr.online vào Cloudflare (Bước 5)
+# [route]
+# pattern = "vtjr.online/*"
+# zone_name = "vtjr.online"
+
+[[containers]]
+class_name = "CodGuardApp"
+image = "./Dockerfile"
+max_instances = 2
+instance_type = "standard-1"
+
+  # Build-time args (tương đương --build-arg trong docker build)
+  # LƯU Ý: wrangler KHÔNG hỗ trợ {env.VAR} trong image_vars (truyền literal nên build fail)
+  # Cách cũ: SHOPIFY_API_KEY = "{env.SHOPIFY_API_KEY}"  <- KHÔNG dùng, build sẽ fail
+  # Key Shopify API là public (nằm trong frontend build), nên hard-code được
+  [containers.image_vars]
+  MODE = "production"
+  SHOPIFY_API_KEY = "6e41fd433a097099c22bf697ca13e998"
+  VITE_CDN_URL = "/"
+  VITE_HOST = "https://vtjr.online"
+  SHOPIFY_APP_PROXY = "/apps/vn-cod-guard"
+
+[[durable_objects.bindings]]
+name = "COD_GUARD_APP"
+class_name = "CodGuardApp"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = [ "CodGuardApp" ]
+
+[vars]
+NODE_ENV = "production"
+PORT = "8080"
+HOST = "https://vtjr.online"
+APP_SCHEME = "https"
+SHOPIFY_API_VERSION = "2026-04"
+SHOPIFY_SCOPES = "read_products,read_orders,write_orders,read_order_edits,write_order_edits,read_delivery_customizations,write_delivery_customizations,read_payment_customizations,write_payment_customizations,read_shipping,read_translations"
+SHOPIFY_BILLING_TEST = "false"
+SHOPIFY_SMS_USAGE_BILLING_ENABLED = "false"
+
+# MySQL - thay IP bằng IP công khai của VPS (Bước 3)
+MYSQL_HOST = "3.1.137.51"
+MYSQL_PORT = "3306"
+MYSQL_DATABASE = "cod_guard"
+MYSQL_USER = "cod_guard_app"
+
+# Redis - thay IP bằng IP công khai của VPS (Bước 3)
+REDIS_HOST = "3.1.137.51"
+REDIS_PORT = "6379"
+REDIS_DATABASE = "0"
+SHOPIFY_SESSION_STORAGE = "redis"
+SHOPIFY_SESSION_REDIS_KEY_PREFIX = "shopify_sessions"
+
+# Automation worker
+COD_AUTOMATION_WORKER_ENABLED = "true"
+COD_AUTOMATION_WORKER_INTERVAL_MS = "30000"
+COD_AUTOMATION_WORKER_BATCH_SIZE = "10"
+COD_AUTOMATION_WORKER_MAX_ATTEMPTS = "3"
+COD_AUTOMATION_WORKER_STALE_RUNNING_MS = "600000"
+COD_AUTOMATION_WORKER_RETRY_BASE_MS = "60000"
+COD_AUTOMATION_WORKER_RETRY_MAX_MS = "900000"
+
+COD_AVERAGE_SHIPPING_COST = "30000"
+EMAIL_PROVIDER = "resend"
+EMAIL_FROM = "VN COD Guard <no-reply@vtjr.online>"
+EMAIL_REPLY_TO = ""
+SUPPORT_EMAIL = "support@vietnamcodguard.com"

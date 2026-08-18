@@ -5,9 +5,14 @@ workflow:
     - if: '$CI_COMMIT_BRANCH == "main"'
     - when: never
 
+# stages:
+#   - test
+#   - build
+#   - deploy
+#   - release
+
 stages:
   - test
-  - build
   - deploy
   - release
 
@@ -42,94 +47,120 @@ test:
     - npm run build --workspace vn-cod-guard-web
     - npm run build --workspace vn-cod-guard-frontend
 
-build_image:
-  stage: build
-  image: docker:27-cli
+# ==== CODE CŨ (đã thay thế bằng deploy_cloudflare bên dưới, giữ lại để tham khảo/rollback) ====
+#
+# build_image:
+#   stage: build
+#   image: docker:27-cli
+#   services:
+#     - name: docker:27-dind
+#       command: ['--tls=false']
+#   needs:
+#     - test
+#   before_script:
+#     - test -n "$SHOPIFY_API_KEY"
+#     - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+#   script:
+#     - |
+#       if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+#         CHANNEL_TAG="latest"
+#       else
+#         CHANNEL_TAG="develop"
+#       fi
+#       docker pull "$CI_REGISTRY_IMAGE:$CHANNEL_TAG" || true
+#       docker build \
+#         --pull \
+#         --cache-from "$CI_REGISTRY_IMAGE:$CHANNEL_TAG" \
+#         --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" \
+#         --tag "$CI_REGISTRY_IMAGE:$CHANNEL_TAG" \
+#         --build-arg MODE=production \
+#         --build-arg SHOPIFY_API_KEY="$SHOPIFY_API_KEY" \
+#         --build-arg VITE_CDN_URL="$VITE_CDN_URL" \
+#         --build-arg VITE_HOST="$VITE_HOST" \
+#         --build-arg SHOPIFY_APP_PROXY="$SHOPIFY_APP_PROXY" \
+#         .
+#       docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+#       docker push "$CI_REGISTRY_IMAGE:$CHANNEL_TAG"
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == "develop"'
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#
+# .production_ssh:
+#   image: alpine:3.20
+#   before_script:
+#     - apk add --no-cache openssh-client
+#     - test -n "$DEPLOY_HOST"
+#     - test -n "$DEPLOY_USER"
+#     - test -n "$DEPLOY_PATH"
+#     - test -f "$SSH_PRIVATE_KEY"
+#     - test -f "$SSH_KNOWN_HOSTS"
+#     - eval "$(ssh-agent -s)"
+#     - chmod 400 "$SSH_PRIVATE_KEY"
+#     - ssh-add "$SSH_PRIVATE_KEY"
+#     - mkdir -p ~/.ssh
+#     - chmod 700 ~/.ssh
+#     - cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts
+#     - chmod 644 ~/.ssh/known_hosts
+#
+# deploy_production:
+#   extends: .production_ssh
+#   stage: deploy
+#   needs:
+#     - build_image
+#   resource_group: production
+#   environment:
+#     name: production
+#     url: https://vtjr.online
+#   script:
+#     - ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
+#     - scp docker-compose.production.yaml "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/docker-compose.production.yaml"
+#     - printf '%s' "$CI_REGISTRY_PASSWORD" | ssh "$DEPLOY_USER@$DEPLOY_HOST" "docker login '$CI_REGISTRY' -u '$CI_REGISTRY_USER' --password-stdin"
+#     - |
+#       ssh "$DEPLOY_USER@$DEPLOY_HOST" "
+#         set -eu
+#         cd '$DEPLOY_PATH'
+#         test -f .env.production
+#         export APP_IMAGE='$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA'
+#         export COMPOSE_FILE=docker-compose.production.yaml
+#         docker compose --env-file .env.production pull app
+#         docker compose --env-file .env.production up -d mysql redis
+#         docker compose --env-file .env.production run --rm app npx prisma migrate deploy
+#         docker compose --env-file .env.production up -d --remove-orphans
+#         attempt=0
+#         until curl --fail --silent --show-error http://127.0.0.1:8080/health >/dev/null; do
+#           attempt=\$((attempt + 1))
+#           if [ \"\$attempt\" -ge 30 ]; then
+#             docker compose --env-file .env.production logs --tail=150 app
+#             exit 1
+#           fi
+#           sleep 2
+#         done
+#         docker image prune -f
+#       "
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == "main"'
+#       when: manual
+#   allow_failure: false
+# ==== HẾT CODE CŨ ====
+
+deploy_cloudflare:
+  stage: deploy
+  image: node:22-bookworm-slim
   services:
     - name: docker:27-dind
       command: ['--tls=false']
   needs:
     - test
-  before_script:
-    - test -n "$SHOPIFY_API_KEY"
-    - echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
-  script:
-    - |
-      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
-        CHANNEL_TAG="latest"
-      else
-        CHANNEL_TAG="develop"
-      fi
-      docker pull "$CI_REGISTRY_IMAGE:$CHANNEL_TAG" || true
-      docker build \
-        --pull \
-        --cache-from "$CI_REGISTRY_IMAGE:$CHANNEL_TAG" \
-        --tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" \
-        --tag "$CI_REGISTRY_IMAGE:$CHANNEL_TAG" \
-        --build-arg MODE=production \
-        --build-arg SHOPIFY_API_KEY="$SHOPIFY_API_KEY" \
-        --build-arg VITE_CDN_URL="$VITE_CDN_URL" \
-        --build-arg VITE_HOST="$VITE_HOST" \
-        --build-arg SHOPIFY_APP_PROXY="$SHOPIFY_APP_PROXY" \
-        .
-      docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
-      docker push "$CI_REGISTRY_IMAGE:$CHANNEL_TAG"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "develop"'
-    - if: '$CI_COMMIT_BRANCH == "main"'
-
-.production_ssh:
-  image: alpine:3.20
-  before_script:
-    - apk add --no-cache openssh-client
-    - test -n "$DEPLOY_HOST"
-    - test -n "$DEPLOY_USER"
-    - test -n "$DEPLOY_PATH"
-    - test -f "$SSH_PRIVATE_KEY"
-    - test -f "$SSH_KNOWN_HOSTS"
-    - eval "$(ssh-agent -s)"
-    - chmod 400 "$SSH_PRIVATE_KEY"
-    - ssh-add "$SSH_PRIVATE_KEY"
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - cp "$SSH_KNOWN_HOSTS" ~/.ssh/known_hosts
-    - chmod 644 ~/.ssh/known_hosts
-
-deploy_production:
-  extends: .production_ssh
-  stage: deploy
-  needs:
-    - build_image
   resource_group: production
   environment:
     name: production
     url: https://vtjr.online
+  before_script:
+    - test -n "$CLOUDFLARE_API_TOKEN"
+    - npm install -g wrangler@4.123.0
+    - npx wrangler --version
   script:
-    - ssh "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
-    - scp docker-compose.production.yaml "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/docker-compose.production.yaml"
-    - printf '%s' "$CI_REGISTRY_PASSWORD" | ssh "$DEPLOY_USER@$DEPLOY_HOST" "docker login '$CI_REGISTRY' -u '$CI_REGISTRY_USER' --password-stdin"
-    - |
-      ssh "$DEPLOY_USER@$DEPLOY_HOST" "
-        set -eu
-        cd '$DEPLOY_PATH'
-        test -f .env.production
-        export APP_IMAGE='$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA'
-        export COMPOSE_FILE=docker-compose.production.yaml
-        docker compose --env-file .env.production pull app
-        docker compose --env-file .env.production up -d mysql redis
-        docker compose --env-file .env.production run --rm app npx prisma migrate deploy
-        docker compose --env-file .env.production up -d --remove-orphans
-        attempt=0
-        until curl --fail --silent --show-error http://127.0.0.1:8080/health >/dev/null; do
-          attempt=\$((attempt + 1))
-          if [ \"\$attempt\" -ge 30 ]; then
-            docker compose --env-file .env.production logs --tail=150 app
-            exit 1
-          fi
-          sleep 2
-        done
-        docker image prune -f
-      "
+    - npx wrangler deploy
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: manual
@@ -139,7 +170,7 @@ release_shopify:
   stage: release
   image: node:22-bookworm-slim
   needs:
-    - deploy_production
+    - deploy_cloudflare
   resource_group: shopify-production
   before_script:
     - test -n "$SHOPIFY_APP_AUTOMATION_TOKEN"
