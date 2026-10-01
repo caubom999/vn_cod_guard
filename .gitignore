@@ -38,6 +38,7 @@ web/database.sqlite
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+.env.*
 
 .idea
 .docker/data
